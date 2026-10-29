@@ -157,7 +157,7 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      showAppSnackBar('已记录 · ${category.name} ${Money.formatCents(cents)}');
+      showAppToast('已记录 · ${category.name} ${Money.formatCents(cents)}');
     } catch (_) {
       if (!mounted) return;
       setState(() {

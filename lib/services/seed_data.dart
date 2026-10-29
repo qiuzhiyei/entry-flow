@@ -2,13 +2,17 @@ import 'package:hive/hive.dart';
 
 import '../models/record.dart';
 
-/// Demo entries are written only on the very first launch, so the UI has real
-/// content to render during development. Set this to `false` for an empty
-/// ledger, or use "清空所有记录" in the profile screen.
+/// Demo entries are written only on the very first launch. Set this to `false`
+/// for a clean ledger. Clearing every record never re-seeds them.
 const bool kSeedDemoData = true;
 
 abstract final class SeedData {
   static const String _seededKey = 'demo_seeded';
+  static const String _versionKey = 'demo_version';
+  static const int _version = 2;
+
+  static const String _dailyLedger = 'daily';
+  static const String _travelLedger = 'travel';
 
   static Future<void> seedIfNeeded(
     Box<Record> box,
@@ -16,27 +20,20 @@ abstract final class SeedData {
   ) async {
     if (!kSeedDemoData) return;
 
-    // The flag survives clearing the ledger, so deleting every record never
-    // brings the demo entries back.
-    if (metaBox.get(_seededKey) == true) return;
+    final seeded = metaBox.get(_seededKey) == true;
+    if (seeded) {
+      await _upgradeDemoData(box, metaBox);
+      return;
+    }
+
     if (box.isNotEmpty) {
       await metaBox.put(_seededKey, true);
+      await metaBox.put(_versionKey, _version);
       return;
     }
 
     final now = DateTime.now();
     final records = <Record>[];
-    var index = 0;
-
-    DateTime dateFor(int monthsAgo, int day, int hour, int minute) {
-      final first = DateTime(now.year, now.month - monthsAgo, 1);
-      final lastDay = DateTime(first.year, first.month + 1, 0).day;
-      var dayOfMonth = day < 1 ? 1 : (day > lastDay ? lastDay : day);
-      if (monthsAgo == 0 && dayOfMonth > now.day) {
-        dayOfMonth = now.day;
-      }
-      return DateTime(first.year, first.month, dayOfMonth, hour, minute);
-    }
 
     void add(
       int monthsAgo,
@@ -45,10 +42,12 @@ abstract final class SeedData {
       num amount,
       String note,
       int day,
-      String time,
-    ) {
+      String time, {
+      String ledgerId = _dailyLedger,
+    }) {
       final parts = time.split(':');
-      final date = dateFor(
+      final date = _dateFor(
+        now,
         monthsAgo,
         day,
         int.parse(parts[0]),
@@ -56,18 +55,19 @@ abstract final class SeedData {
       );
       records.add(
         Record(
-          id: 'demo-${now.microsecondsSinceEpoch.toRadixString(36)}-${index++}',
+          id: 'demo-${now.microsecondsSinceEpoch.toRadixString(36)}-${records.length}',
           amountCents: (amount * 100).round(),
           type: type == 'income' ? RecordType.income : RecordType.expense,
           categoryId: categoryId,
           date: date,
           note: note,
           createdAt: date,
+          ledgerId: ledgerId,
         ),
       );
     }
 
-    // ----- current month (mirrors the prototype's October dataset) -----
+    // ----- current month: the prototype's October dataset -----
     add(0, 'expense', 'food', 28, '楼下咖啡', 29, '08:12');
     add(0, 'expense', 'transport', 6, '地铁 2 号线', 29, '08:40');
     add(0, 'expense', 'food', 42.5, '公司楼下简餐', 29, '12:26');
@@ -94,7 +94,7 @@ abstract final class SeedData {
     add(0, 'expense', 'transport', 100, '地铁月卡', 3, '07:50');
     add(0, 'expense', 'home', 2200, '本月房租', 1, '09:00');
 
-    // ----- previous months, used for the month-over-month delta -----
+    // ----- previous two months -----
     add(1, 'expense', 'home', 2200, '上月房租', 1, '09:00');
     add(1, 'expense', 'food', 860, '月中聚餐与外卖', 12, '19:20');
     add(1, 'expense', 'shopping', 640, '家居小物', 18, '15:10');
@@ -118,7 +118,191 @@ abstract final class SeedData {
     add(3, 'income', 'salary', 8200, '工资', 10, '10:00');
     add(3, 'income', 'bonus', 1200, '季度奖金', 15, '10:00');
 
+    // ----- earlier months, so the year chart is complete -----
+    records.addAll(_buildHistoricalRecords(now));
+    records.addAll(_buildTravelRecords(now));
+
     await box.addAll(records);
     await metaBox.put(_seededKey, true);
+    await metaBox.put(_versionKey, _version);
+  }
+
+  /// Older demo installs already have the October/September/... records.
+  /// Version 2 adds the earlier months and the travel ledger without touching
+  /// the user's own records.
+  static Future<void> _upgradeDemoData(
+    Box<Record> box,
+    Box<dynamic> metaBox,
+  ) async {
+    final version = metaBox.get(_versionKey) as int? ?? 1;
+    if (version >= _version) return;
+
+    final hasDemoRecords = box.values.any(
+      (record) => record.id.startsWith('demo-'),
+    );
+    if (hasDemoRecords) {
+      final now = DateTime.now();
+      final existingIds = box.keys.cast<String>().toSet();
+      final additions = <Record>[
+        ..._buildHistoricalRecords(now),
+        ..._buildTravelRecords(now),
+      ].where((record) => !existingIds.contains(record.id)).toList();
+      if (additions.isNotEmpty) await box.addAll(additions);
+    }
+
+    await metaBox.put(_versionKey, _version);
+  }
+
+  static List<Record> _buildHistoricalRecords(DateTime now) {
+    final records = <Record>[];
+    var index = 0;
+
+    void add(
+      int monthsAgo,
+      String type,
+      String categoryId,
+      num amount,
+      String note,
+      int day,
+      String time,
+    ) {
+      final parts = time.split(':');
+      final date = _dateFor(
+        now,
+        monthsAgo,
+        day,
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+      );
+      records.add(
+        Record(
+          id: 'demo-history-${now.microsecondsSinceEpoch.toRadixString(36)}-${index++}',
+          amountCents: (amount * 100).round(),
+          type: type == 'income' ? RecordType.income : RecordType.expense,
+          categoryId: categoryId,
+          date: date,
+          note: note,
+          createdAt: date,
+          ledgerId: _dailyLedger,
+        ),
+      );
+    }
+
+    // June (4 months ago)
+    add(4, 'expense', 'home', 2200, '六月房租', 1, '09:00');
+    add(4, 'expense', 'food', 700, '六月餐饮', 15, '18:00');
+    add(4, 'expense', 'shopping', 420, '日用品', 8, '20:00');
+    add(4, 'expense', 'transport', 190, '六月交通', 24, '08:10');
+    add(4, 'income', 'salary', 8200, '六月工资', 10, '10:00');
+
+    // May (5 months ago)
+    add(5, 'expense', 'home', 2200, '五月房租', 1, '09:00');
+    add(5, 'expense', 'food', 640, '五月餐饮', 13, '18:20');
+    add(5, 'expense', 'shopping', 300, '小家电', 7, '14:00');
+    add(5, 'expense', 'transport', 170, '五月交通', 27, '08:00');
+    add(5, 'expense', 'fun', 150, '桌游局', 23, '20:30');
+    add(5, 'income', 'salary', 8200, '五月工资', 10, '10:00');
+    add(5, 'income', 'parttime', 600, '翻译稿费', 19, '16:00');
+
+    // April (6 months ago)
+    add(6, 'expense', 'home', 2200, '四月房租', 1, '09:00');
+    add(6, 'expense', 'food', 680, '四月餐饮', 13, '18:20');
+    add(6, 'expense', 'shopping', 890, '换了台显示器', 8, '20:00');
+    add(6, 'expense', 'fun', 240, '周末展览', 19, '14:30');
+    add(6, 'expense', 'transport', 160, '四月交通', 27, '08:10');
+    add(6, 'income', 'salary', 8200, '四月工资', 10, '10:00');
+    add(6, 'income', 'invest', 88.6, '理财收益', 28, '09:00');
+
+    // March (7 months ago)
+    add(7, 'expense', 'home', 2200, '三月房租', 1, '09:00');
+    add(7, 'expense', 'food', 720, '三月餐饮', 15, '18:40');
+    add(7, 'expense', 'shopping', 260, '换季收纳', 9, '14:00');
+    add(7, 'expense', 'medical', 280, '春季体检', 6, '09:30');
+    add(7, 'expense', 'study', 199, '设计课程', 18, '21:00');
+    add(7, 'expense', 'transport', 150, '三月交通', 24, '08:15');
+    add(7, 'income', 'salary', 8200, '三月工资', 10, '10:00');
+    add(7, 'income', 'parttime', 400, '海报设计稿费', 26, '15:00');
+
+    // February (8 months ago)
+    add(8, 'expense', 'home', 2200, '二月房租', 1, '09:00');
+    add(8, 'expense', 'shopping', 480, '年货采购', 10, '15:20');
+    add(8, 'expense', 'food', 760, '春节聚餐', 14, '18:00');
+    add(8, 'expense', 'transport', 320, '回家高铁票', 16, '09:10');
+    add(8, 'income', 'salary', 8200, '二月工资', 10, '10:00');
+    add(8, 'income', 'redpacket', 1200, '春节红包', 17, '20:00');
+
+    // January (9 months ago)
+    add(9, 'expense', 'home', 2200, '一月房租', 1, '09:00');
+    add(9, 'expense', 'food', 690, '一月餐饮', 12, '18:30');
+    add(9, 'expense', 'shopping', 350, '冬季日用品', 8, '16:00');
+    add(9, 'expense', 'transport', 145, '一月交通', 22, '08:20');
+    add(9, 'income', 'salary', 8200, '一月工资', 10, '10:00');
+    add(9, 'income', 'bonus', 8000, '年终奖', 20, '10:00');
+
+    return records;
+  }
+
+  static List<Record> _buildTravelRecords(DateTime now) {
+    const notes = <String>[
+      '高铁票',
+      '民宿住宿',
+      '景点门票',
+      '旅行餐饮',
+      '打车',
+      '纪念品',
+      '咖啡',
+      '租车',
+    ];
+    const categories = <String>[
+      'transport',
+      'home',
+      'fun',
+      'food',
+      'transport',
+      'shopping',
+      'food',
+      'transport',
+    ];
+
+    return <Record>[
+      for (var i = 0; i < 32; i++)
+        () {
+          final monthsAgo = i < 4 ? 0 : 1 + ((i - 4) % 6);
+          final day = 2 + ((i * 5) % 24);
+          final date = _dateFor(
+            now,
+            monthsAgo,
+            day,
+            9 + (i % 10),
+            (i * 7) % 60,
+          );
+          return Record(
+            id: 'demo-travel-${now.microsecondsSinceEpoch.toRadixString(36)}-$i',
+            amountCents: (48 + ((i * 73) % 520)) * 100,
+            type: RecordType.expense,
+            categoryId: categories[i % categories.length],
+            date: date,
+            note: notes[i % notes.length],
+            createdAt: date,
+            ledgerId: _travelLedger,
+          );
+        }(),
+    ];
+  }
+
+  static DateTime _dateFor(
+    DateTime now,
+    int monthsAgo,
+    int day,
+    int hour,
+    int minute,
+  ) {
+    final first = DateTime(now.year, now.month - monthsAgo, 1);
+    final lastDay = DateTime(first.year, first.month + 1, 0).day;
+    var dayOfMonth = day < 1 ? 1 : (day > lastDay ? lastDay : day);
+    if (monthsAgo == 0 && dayOfMonth > now.day) {
+      dayOfMonth = now.day;
+    }
+    return DateTime(first.year, first.month, dayOfMonth, hour, minute);
   }
 }

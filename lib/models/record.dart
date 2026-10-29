@@ -24,6 +24,7 @@ class Record {
     required this.date,
     this.note = '',
     required this.createdAt,
+    this.ledgerId = 'daily',
   });
 
   final String id;
@@ -33,6 +34,7 @@ class Record {
   final DateTime date;
   final String note;
   final DateTime createdAt;
+  final String ledgerId;
 
   static const int hiveTypeId = 0;
 
@@ -46,6 +48,7 @@ class Record {
     DateTime? date,
     String? note,
     DateTime? createdAt,
+    String? ledgerId,
   }) {
     return Record(
       id: id ?? this.id,
@@ -55,13 +58,44 @@ class Record {
       date: date ?? this.date,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      ledgerId: ledgerId ?? this.ledgerId,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'amountCents': amountCents,
+      'type': type.name,
+      'categoryId': categoryId,
+      'date': date.toIso8601String(),
+      'note': note,
+      'createdAt': createdAt.toIso8601String(),
+      'ledgerId': ledgerId,
+    };
+  }
+
+  factory Record.fromJson(Map<String, dynamic> json) {
+    return Record(
+      id: json['id'] as String,
+      amountCents: (json['amountCents'] as num).toInt(),
+      type: RecordType.values.firstWhere(
+        (type) => type.name == json['type'],
+        orElse: () => RecordType.expense,
+      ),
+      categoryId: json['categoryId'] as String,
+      date: RecordAdapter._readDate(json['date']),
+      note: (json['note'] as String?) ?? '',
+      createdAt: RecordAdapter._readDate(json['createdAt']),
+      ledgerId: (json['ledgerId'] as String?) ?? 'daily',
     );
   }
 
   @override
   String toString() {
     return 'Record(id: $id, type: ${type.name}, amountCents: $amountCents, '
-        'categoryId: $categoryId, date: $date, note: $note)';
+        'categoryId: $categoryId, date: $date, note: $note, '
+        'ledgerId: $ledgerId)';
   }
 }
 
@@ -84,13 +118,14 @@ class RecordAdapter extends TypeAdapter<Record> {
       date: _readDate(fields[4]),
       note: (fields[5] as String?) ?? '',
       createdAt: _readDate(fields[6]),
+      ledgerId: (fields[7] as String?) ?? 'daily',
     );
   }
 
   @override
   void write(BinaryWriter writer, Record obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -104,7 +139,9 @@ class RecordAdapter extends TypeAdapter<Record> {
       ..writeByte(5)
       ..write(obj.note)
       ..writeByte(6)
-      ..write(obj.createdAt.toIso8601String());
+      ..write(obj.createdAt.toIso8601String())
+      ..writeByte(7)
+      ..write(obj.ledgerId);
   }
 
   static DateTime _readDate(dynamic value) {

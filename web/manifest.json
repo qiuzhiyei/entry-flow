@@ -1,11 +1,11 @@
 {
-    "name": "entry_flow",
-    "short_name": "entry_flow",
+    "name": "记账本",
+    "short_name": "记账本",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F3F6F2",
+    "theme_color": "#0C7E60",
+    "description": "薄荷绿本地记账本，数据只保存在本机。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

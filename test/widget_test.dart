@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 void main() {
   late Directory tempDir;
   late Box<Record> box;
+  late Box<dynamic> meta;
 
   setUpAll(() async {
     tempDir = await Directory.systemTemp.createTemp('entry_flow_widget_');
@@ -19,10 +20,12 @@ void main() {
       Hive.registerAdapter(RecordAdapter());
     }
     box = await Hive.openBox<Record>('widget_records');
+    meta = await Hive.openBox<dynamic>('widget_meta');
   });
 
   setUp(() async {
     await box.clear();
+    await meta.clear();
   });
 
   tearDownAll(() async {
@@ -38,7 +41,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
     await tester.pumpWidget(

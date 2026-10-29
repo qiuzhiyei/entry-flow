@@ -21,7 +21,8 @@ Future<void> main() async {
 
   runApp(
     ChangeNotifierProvider<LedgerProvider>(
-      create: (_) => LedgerProvider(HiveService.recordsBox),
+      create: (_) =>
+          LedgerProvider(HiveService.recordsBox, HiveService.metaBox),
       child: const LedgerApp(),
     ),
   );

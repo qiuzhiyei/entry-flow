@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 void main() {
   late Directory tempDir;
   late Box<Record> box;
+  late Box<dynamic> meta;
 
   setUpAll(() async {
     tempDir = await Directory.systemTemp.createTemp('entry_flow_test_');
@@ -16,10 +17,12 @@ void main() {
       Hive.registerAdapter(RecordAdapter());
     }
     box = await Hive.openBox<Record>('records');
+    meta = await Hive.openBox<dynamic>('meta');
   });
 
   setUp(() async {
     await box.clear();
+    await meta.clear();
   });
 
   tearDownAll(() async {
@@ -28,7 +31,7 @@ void main() {
   });
 
   test('adding a record updates totals and day groups', () async {
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
     await provider.addRecord(
@@ -51,7 +54,7 @@ void main() {
   });
 
   test('month-over-month comparison reads the previous month', () async {
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
     final now = DateTime.now();
@@ -75,7 +78,7 @@ void main() {
   });
 
   test('income and expense are aggregated separately', () async {
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
     await provider.addRecord(
@@ -98,7 +101,7 @@ void main() {
   });
 
   test('clearAll removes every record and notifies listeners', () async {
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
     var notifications = 0;
     provider.addListener(() => notifications++);
@@ -116,7 +119,7 @@ void main() {
   });
 
   test('rejects a zero amount', () async {
-    final provider = LedgerProvider(box);
+    final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
     expect(
@@ -128,5 +131,45 @@ void main() {
       ),
       throwsArgumentError,
     );
+  });
+
+  test('switching ledgers scopes totals and persists the selection', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await provider.addRecord(
+      amountCents: 1000,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+    );
+    await provider.selectLedger('travel');
+    await provider.addRecord(
+      amountCents: 2500,
+      type: RecordType.expense,
+      categoryId: 'transport',
+      date: DateTime.now(),
+    );
+
+    expect(provider.currentMonthExpenseCents, 2500);
+    expect(provider.currentMonthCountForLedger('daily'), 1);
+    expect(provider.totalCountForLedger('travel'), 1);
+
+    final restored = LedgerProvider(box, meta);
+    addTearDown(restored.dispose);
+    expect(restored.selectedLedger.id, 'travel');
+  });
+
+  test('reminder and backup settings persist in the meta box', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await provider.setReminderEnabled(false);
+    await provider.backupNow();
+
+    expect(provider.reminderEnabled, isFalse);
+    expect(provider.lastBackupAt, isNotNull);
+    expect(meta.get('reminder_enabled'), isFalse);
+    expect(meta.get('backup_json'), isA<String>());
   });
 }

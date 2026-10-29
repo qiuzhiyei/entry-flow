@@ -32,7 +32,15 @@ void main() {
 
   test('demo data is seeded once and never returns after clearing', () async {
     await SeedData.seedIfNeeded(records, meta);
-    expect(records, hasLength(45));
+    expect(records, hasLength(116));
+    expect(
+      records.values.where((record) => record.ledgerId == 'daily').length,
+      84,
+    );
+    expect(
+      records.values.where((record) => record.ledgerId == 'travel').length,
+      32,
+    );
     expect(meta.get('demo_seeded'), isTrue);
 
     await records.clear();

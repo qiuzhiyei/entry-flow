@@ -297,7 +297,6 @@
       padding: 0 20px 24px;
     }
     .screen-scroll::-webkit-scrollbar { display: none; }
-    #homeScroll { padding-bottom: 86px; }
 
     .ic-16 { --od-icon-size: 16px; }
     .ic-18 { --od-icon-size: 18px; }
@@ -399,21 +398,6 @@
     .home-empty .he-ic { color: var(--ink-3); margin: 0 auto 10px; width: 40px; height: 40px; display: grid; place-items: center; background: var(--mint-tint); border-radius: 14px; }
     .home-empty p { margin: 0; font-size: 13px; color: var(--ink-2); font-weight: 550; }
     .home-empty span { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-3); }
-
-    .fab {
-      position: absolute; z-index: 6;
-      right: 18px; bottom: 16px;
-      height: 54px; padding: 0 20px 0 15px;
-      display: inline-flex; align-items: center; gap: 7px;
-      border: 0; border-radius: 999px;
-      background: var(--mint); color: #fff;
-      font-size: 14px; font-weight: 600; letter-spacing: .01em;
-      box-shadow: 0 16px 30px -14px rgba(12, 126, 96, .75), 0 4px 10px -6px rgba(12, 126, 96, .4);
-      cursor: pointer;
-      transition: transform .14s var(--ease), background .16s, box-shadow .16s;
-    }
-    .fab:hover { background: var(--mint-deep); }
-    .fab:active { transform: scale(.955); box-shadow: 0 8px 18px -12px rgba(12, 126, 96, .7); }
 
     /* ---------- tab bar ---------- */
     .tabbar {
@@ -734,11 +718,6 @@
 
               <div id="homeList"></div>
             </div>
-
-            <button class="fab" id="fabAdd" type="button">
-              <svg class="od-icon ic-22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
-              记一笔
-            </button>
           </section>
 
           <!-- ============ ADD ============ -->
@@ -1785,10 +1764,6 @@
     }
 
     /* ---------- events ---------- */
-    $("#fabAdd").addEventListener("click", () => {
-      ui.addReturn = "home";
-      openAdd();
-    });
     $("#addBack").addEventListener("click", () => go(ui.addReturn));
 
     document.addEventListener("click", (e) => {

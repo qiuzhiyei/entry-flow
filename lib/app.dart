@@ -28,7 +28,6 @@ class LedgerApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      scaffoldMessengerKey: appMessengerKey,
       scrollBehavior: const AppScrollBehavior(),
       builder: (context, child) {
         return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -39,7 +38,9 @@ class LedgerApp extends StatelessWidget {
             systemNavigationBarColor: AppColors.surface,
             systemNavigationBarIconBrightness: Brightness.dark,
           ),
-          child: AppFrame(child: child ?? const SizedBox.shrink()),
+          child: AppFrame(
+            child: AppToastHost(child: child ?? const SizedBox.shrink()),
+          ),
         );
       },
       home: const LedgerShell(),
@@ -98,10 +99,7 @@ class _LedgerShellState extends State<LedgerShell> {
               child: IndexedStack(
                 index: _tab,
                 children: <Widget>[
-                  HomeScreen(
-                    onOpenStats: () => setState(() => _tab = 1),
-                    onAdd: _openAdd,
-                  ),
+                  HomeScreen(onOpenStats: () => setState(() => _tab = 1)),
                   const StatsScreen(),
                   const ProfileScreen(),
                 ],

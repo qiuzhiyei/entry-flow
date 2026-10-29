@@ -10,10 +10,9 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.onOpenStats, required this.onAdd});
+  const HomeScreen({super.key, required this.onOpenStats});
 
   final VoidCallback onOpenStats;
-  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -21,42 +20,38 @@ class HomeScreen extends StatelessWidget {
     final groups = ledger.currentMonthGroups;
     final now = DateTime.now();
 
-    return Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _HomeHeader(now: now),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                children: <Widget>[
-                  // The prototype insets the balance card 20px more than the
-                  // rest of the scroll content.
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _BalanceCard(ledger: ledger),
-                  ),
-                  _SectionHead(onTap: onOpenStats),
-                  if (groups.isEmpty)
-                    const _HomeEmptyState()
-                  else
-                    ...groups.map((group) => _DaySection(group: group)),
-                ],
+        _HomeHeader(now: now, ledgerName: ledger.selectedLedger.name),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            children: <Widget>[
+              // The prototype insets the balance card 20px more than the
+              // rest of the scroll content.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _BalanceCard(ledger: ledger),
               ),
-            ),
-          ],
+              _SectionHead(onTap: onOpenStats),
+              if (groups.isEmpty)
+                const _HomeEmptyState()
+              else
+                ...groups.map((group) => _DaySection(group: group)),
+            ],
+          ),
         ),
-        Positioned(right: 18, bottom: 16, child: _AddFab(onTap: onAdd)),
       ],
     );
   }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.now});
+  const _HomeHeader({required this.now, required this.ledgerName});
 
   final DateTime now;
+  final String ledgerName;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +61,7 @@ class _HomeHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '日常账本 · ${Dates.cnDate(now)} ${Dates.weekday(now)}',
+            '$ledgerName · ${Dates.cnDate(now)} ${Dates.weekday(now)}',
             style: AppText.eyebrow,
           ),
           const SizedBox(height: 3),
@@ -492,44 +487,5 @@ class _DashedRoundedBorder extends CustomPainter {
   @override
   bool shouldRepaint(_DashedRoundedBorder oldDelegate) {
     return oldDelegate.color != color || oldDelegate.radius != radius;
-  }
-}
-
-class _AddFab extends StatelessWidget {
-  const _AddFab({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.all(Radius.circular(999)),
-        boxShadow: AppShadows.fab,
-      ),
-      child: Material(
-        color: AppColors.mint,
-        borderRadius: BorderRadius.circular(999),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          hoverColor: Colors.white.withValues(alpha: 0.08),
-          child: SizedBox(
-            height: 54,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(15, 0, 20, 0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const <Widget>[
-                  Icon(Icons.add_rounded, size: 22, color: Colors.white),
-                  SizedBox(width: 7),
-                  Text('记一笔', style: AppText.fabLabel),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
