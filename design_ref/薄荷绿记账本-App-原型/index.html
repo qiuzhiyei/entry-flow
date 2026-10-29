@@ -1,0 +1,1921 @@
+<!doctype html>
+<!--
+  Open Design · OD Next handheld shell — platform-neutral phone.
+  Presentation shell kept intact; the product lives inside the APP CONTENT slot.
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记账本 · 个人记账原型</title>
+  <style>
+    /* Native hidden remains authoritative over component flex/grid styles. */
+    [hidden]:not([hidden="until-found" i]) { display: none !important; }
+
+    :root {
+      --phone-screen-width: 390px;
+      --phone-screen-height: 844px;
+      --phone-bezel: 10px;
+      --phone-outer-radius: 52px;
+      --phone-screen-radius: 42px;
+      --phone-safe-top: 50px;
+      --phone-safe-bottom: 29px;
+      --phone-system-fg: #17181a;
+      --phone-screen-bg: #f8f8f9;
+      --phone-stage-bg: #eaebee;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(255,255,255,.94), transparent 35%),
+        var(--phone-stage-bg, #eaebee);
+      color: #191a1d;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .phone-frame {
+      position: relative;
+      width: calc(var(--phone-screen-width, 390px) + var(--phone-bezel, 10px) * 2);
+      height: calc(var(--phone-screen-height, 844px) + var(--phone-bezel, 10px) * 2);
+      padding: var(--phone-bezel, 10px);
+      border-radius: var(--phone-outer-radius, 52px);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.2), transparent 17%),
+        linear-gradient(160deg, #3f4146 0%, #202227 48%, #0b0c0f 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.13),
+        inset 0 0 0 2px rgba(0,0,0,.85),
+        0 32px 68px -20px rgba(10,12,16,.52),
+        0 10px 24px -10px rgba(10,12,16,.32);
+      isolation: isolate;
+    }
+
+    .phone-frame::before,
+    .phone-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: 96px;
+      bottom: 96px;
+      width: 2px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,.13) 16%, transparent 30%, transparent 72%, rgba(255,255,255,.07) 88%, transparent);
+    }
+    .phone-frame::before { left: 0; }
+    .phone-frame::after { right: 0; }
+
+    .hardware-button {
+      position: absolute;
+      width: 4px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #08090b, #2a2d33 60%, #08090b);
+      box-shadow: inset 0 1px rgba(255,255,255,.08);
+    }
+    .hardware-button.volume { left: -3px; top: 222px; height: 86px; }
+    .hardware-button.power { right: -3px; top: 270px; height: 82px; }
+
+    .phone-screen {
+      position: relative;
+      width: var(--phone-screen-width, 390px);
+      height: var(--phone-screen-height, 844px);
+      overflow: hidden;
+      border-radius: var(--phone-screen-radius, 42px);
+      background: var(--phone-screen-bg, #f8f8f9);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+    .phone-content {
+      position: absolute;
+      inset: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-top: var(--phone-safe-top, 50px);
+      padding-bottom: var(--phone-safe-bottom, 29px);
+      background: var(--phone-screen-bg, #f8f8f9);
+    }
+    .phone-content::-webkit-scrollbar { display: none; }
+
+    .camera-dot {
+      position: absolute;
+      z-index: 20;
+      top: 13px;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 35%, #344154 0 12%, #0a0c10 34%, #000 76%);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.06);
+      pointer-events: none;
+    }
+
+    .status-bar {
+      position: absolute;
+      z-index: 15;
+      inset: 0 0 auto;
+      height: var(--phone-safe-top, 50px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+      align-items: start;
+      padding: 14px 20px 0;
+      color: var(--phone-system-fg, #17181a);
+      opacity: .8;
+      pointer-events: none;
+    }
+    .status-time {
+      justify-self: start;
+      display: flex;
+      align-items: center;
+      height: 15px;
+      font-size: 14px;
+      font-weight: 560;
+      line-height: 1;
+      letter-spacing: .01em;
+    }
+    .status-cutout-zone { width: 56px; }
+    .status-icons {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      height: 15px;
+      gap: 6px;
+    }
+    .status-icons svg {
+      display: block;
+      flex: none;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.35;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .status-icons .connectivity { width: 15px; height: 12px; }
+    .status-icons .wifi { width: 15px; height: 12px; }
+    .status-icons .battery { width: 19px; height: 11px; }
+
+    .gesture-indicator {
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: 8px;
+      width: 96px;
+      height: 4px;
+      transform: translateX(-50%);
+      border-radius: 99px;
+      background: var(--phone-system-fg, #17181a);
+      opacity: .86;
+      pointer-events: none;
+    }
+
+    /* Presentation scaling: keep the whole handset visible on short viewports. */
+    @media (max-height: 927px) { .phone-frame { zoom: 0.9; } }
+    @media (max-height: 840px) { .phone-frame { zoom: 0.82; } }
+    @media (max-height: 771px) { .phone-frame { zoom: 0.74; } }
+    @media (max-height: 702px) { .phone-frame { zoom: 0.66; } }
+    /* Narrow viewports: the handset chrome collapses and the screen fills the
+       viewport, so the app behaves like a real phone page. */
+    @media (max-width: 480px) {
+      body { padding: 0; display: block; }
+      .phone-frame { width: 100%; height: 100dvh; padding: 0; border-radius: 0; background: none; box-shadow: none; zoom: 1; }
+      .phone-frame::before, .phone-frame::after, .hardware-button { display: none; }
+      .phone-screen { width: 100%; height: 100%; border-radius: 0; }
+    }
+  </style>
+
+  <style>
+    /* OD-LAYOUT-PRIMITIVES v1 — structure only. */
+    @layer od-layout {
+      [hidden]:not([hidden="until-found" i]) { display: none !important; }
+      dialog:not([open]) { display: none !important; }
+
+      :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+      .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+      .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+      .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+      .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+      .od-fill    { flex: 1 1 0; min-width: 0; }
+      .od-fixed   { flex: none; }
+      .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+      .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+      :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+      .od-tile { display: grid; grid-template-rows: auto 1fr; }
+      :where(.od-tile) > :where(*) { display: block; }
+
+      .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+      .od-media-cover { object-fit: cover; }
+
+      .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+
+      .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+      .od-clamp-2 { -webkit-line-clamp: 2; }
+      .od-clamp-3 { -webkit-line-clamp: 3; }
+      .od-lines-2 { min-height: calc(2 * 1.4em); }
+      .od-nowrap  { white-space: nowrap; }
+      .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+      .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+      .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+      .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+                 padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+      .od-rail::-webkit-scrollbar { display: none; }
+      :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+      :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+      .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+      .od-touch  { min-width: 44px; min-height: 44px; }
+    }
+    :root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+    /* /OD-LAYOUT-PRIMITIVES v1 */
+  </style>
+
+  <style>
+    /* Product tokens live on :root so overlays mounted inside the handset inherit them. */
+    :root {
+      --canvas: #F3F6F2;
+      --surface: #FFFFFF;
+      --line: #E6EBE6;
+      --line-2: #EFF3EF;
+      --ink: #12211B;
+      --ink-2: #57675F;
+      --ink-3: #6E7C76;
+      --mint: #0C7E60;
+      --mint-ink: #0A6B51;
+      --mint-deep: #08543F;
+      --mint-soft: #E3F2EA;
+      --mint-tint: #F1F8F4;
+      --amber: #D9651C;
+      --amber-ink: #A8551A;
+      --amber-soft: #FCEFE2;
+      --danger: #B3372E;
+      --shadow-card: 0 10px 24px -20px rgba(15, 40, 30, .55), 0 2px 6px -5px rgba(15, 40, 30, .12);
+      --r-card: 20px;
+      --font: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      --ease: cubic-bezier(.22, .61, .36, 1);
+    }
+
+    /* ---------- app skeleton ---------- */
+    .phone-content { padding-bottom: 0; overflow: hidden; background: var(--canvas); }
+
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+    button, input { font-family: inherit; }
+    :where(button, input):focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+
+    .screen { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; outline: none; }
+    .screen.anim { animation: screenIn .26s var(--ease); }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+    .screen-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      padding: 0 20px 24px;
+    }
+    .screen-scroll::-webkit-scrollbar { display: none; }
+    #homeScroll { padding-bottom: 86px; }
+
+    .ic-16 { --od-icon-size: 16px; }
+    .ic-18 { --od-icon-size: 18px; }
+    .ic-20 { --od-icon-size: 20px; }
+    .ic-22 { --od-icon-size: 22px; }
+    .ic-23 { --od-icon-size: 23px; }
+    .ic-26 { --od-icon-size: 26px; }
+
+    /* ---------- shared bits ---------- */
+    .icon-btn {
+      width: 44px; height: 44px; display: grid; place-items: center;
+      border: 0; border-radius: 14px; background: transparent; color: var(--ink);
+      cursor: pointer; transition: background .16s, transform .12s;
+    }
+    .icon-btn:hover { background: rgba(18, 33, 27, .05); }
+    .icon-btn:active { transform: scale(.93); background: rgba(18, 33, 27, .09); }
+
+    .scr-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; }
+    .scr-title { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.01em; flex: 1; }
+    .scr-title.center { text-align: center; }
+    .scr-head .od-spacer { width: 44px; height: 44px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line-2);
+      border-radius: var(--r-card);
+      box-shadow: var(--shadow-card);
+      padding: 18px;
+    }
+    .card + .card { margin-top: 14px; }
+    .card-title { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+    .card-sub { font-size: 11.5px; color: var(--ink-3); }
+
+    .sec-head { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 10px; }
+    .sec-head h2 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+    .link-btn {
+      display: inline-flex; align-items: center; gap: 1px;
+      min-height: 44px; padding: 0 0 0 10px; border: 0; background: none;
+      color: var(--mint-ink); font-size: 12.5px; font-weight: 560; cursor: pointer;
+    }
+    .link-btn:active { opacity: .7; }
+
+    /* ---------- home ---------- */
+    .home-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 20px 14px; }
+    .eyebrow { font-size: 11.5px; letter-spacing: .04em; color: var(--ink-3); font-weight: 500; }
+    .greet { margin: 3px 0 0; font-size: 22px; font-weight: 660; letter-spacing: -.02em; line-height: 1.24; }
+
+    .balance-card {
+      margin: 0 20px;
+      padding: 20px 20px 18px;
+      border-radius: 24px;
+      background: var(--mint-soft);
+      border: 1px solid #D2E9DE;
+    }
+    .bc-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .bc-label { font-size: 13px; color: #3A6A5A; font-weight: 550; }
+    .bc-delta {
+      display: inline-flex; align-items: center; gap: 3px;
+      height: 26px; padding: 0 9px; border-radius: 999px;
+      background: rgba(255, 255, 255, .78); color: var(--mint-ink);
+      font-size: 11px; font-weight: 620; white-space: nowrap;
+    }
+    .bc-amount { margin: 8px 0 0; font-size: 37px; font-weight: 690; letter-spacing: -.035em; line-height: 1.08; color: #073A2B; }
+    .bc-split {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      margin-top: 18px; padding-top: 15px;
+      border-top: 1px solid rgba(7, 58, 43, .12);
+    }
+    .bc-k { font-size: 11.5px; color: #477364; }
+    .bc-v { font-size: 16px; font-weight: 630; color: #073A2B; letter-spacing: -.01em; }
+    .bc-v.in { color: var(--amber-ink); }
+
+    .day-group { margin-top: 2px; }
+    .day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 4px 7px; font-size: 11.5px; color: var(--ink-3); }
+    .day-total { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .tx-card {
+      list-style: none; margin: 0; padding: 2px 16px;
+      background: var(--surface); border: 1px solid var(--line-2);
+      border-radius: 18px; box-shadow: var(--shadow-card);
+    }
+    .tx { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+    .tx + .tx { border-top: 1px solid var(--line-2); }
+    .tx-ic { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; flex: none; }
+    .tx-main { --od-gap: 2px; }
+    .tx-name { font-size: 14.5px; font-weight: 580; color: var(--ink); line-height: 1.3; }
+    .tx-note { font-size: 12px; color: var(--ink-3); line-height: 1.35; }
+    .tx-amt {
+      font-size: 15px; font-weight: 620; color: var(--ink);
+      font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+      white-space: nowrap; flex: none;
+    }
+    .tx-amt.in { color: var(--amber-ink); }
+
+    .home-empty {
+      margin-top: 6px; padding: 32px 22px; text-align: center;
+      background: var(--surface); border: 1px dashed var(--line); border-radius: 18px;
+    }
+    .home-empty .he-ic { color: var(--ink-3); margin: 0 auto 10px; width: 40px; height: 40px; display: grid; place-items: center; background: var(--mint-tint); border-radius: 14px; }
+    .home-empty p { margin: 0; font-size: 13px; color: var(--ink-2); font-weight: 550; }
+    .home-empty span { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-3); }
+
+    .fab {
+      position: absolute; z-index: 6;
+      right: 18px; bottom: 16px;
+      height: 54px; padding: 0 20px 0 15px;
+      display: inline-flex; align-items: center; gap: 7px;
+      border: 0; border-radius: 999px;
+      background: var(--mint); color: #fff;
+      font-size: 14px; font-weight: 600; letter-spacing: .01em;
+      box-shadow: 0 16px 30px -14px rgba(12, 126, 96, .75), 0 4px 10px -6px rgba(12, 126, 96, .4);
+      cursor: pointer;
+      transition: transform .14s var(--ease), background .16s, box-shadow .16s;
+    }
+    .fab:hover { background: var(--mint-deep); }
+    .fab:active { transform: scale(.955); box-shadow: 0 8px 18px -12px rgba(12, 126, 96, .7); }
+
+    /* ---------- tab bar ---------- */
+    .tabbar {
+      flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      padding: 6px 8px calc(var(--phone-safe-bottom) + 4px);
+      background: var(--surface); border-top: 1px solid var(--line);
+    }
+    .tab {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      min-height: 48px; padding: 5px 0 3px; border: 0; border-radius: 14px;
+      background: none; color: var(--ink-3);
+      font-size: 10.5px; font-weight: 520; cursor: pointer;
+      transition: color .16s, transform .12s;
+    }
+    .tab:active { transform: scale(.94); }
+    .tab[aria-current="page"] { color: var(--mint); font-weight: 600; }
+    .tab-add-ic {
+      width: 34px; height: 34px; border-radius: 12px; margin-top: -4px;
+      display: grid; place-items: center;
+      background: var(--mint-soft); color: var(--mint-ink);
+    }
+
+    /* ---------- add transaction ---------- */
+    .add-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .seg {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      margin: 2px 20px 0; padding: 4px; border-radius: 14px; background: #E8EFEA;
+    }
+    .seg button {
+      height: 38px; border: 0; border-radius: 11px; background: transparent;
+      color: var(--ink-2); font-size: 13.5px; font-weight: 600; cursor: pointer;
+      transition: background .18s, color .18s, box-shadow .18s;
+    }
+    .seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(18, 33, 27, .13); }
+    .seg button[data-type="income"][aria-selected="true"] { color: var(--amber-ink); }
+    .seg button:active { transform: scale(.98); }
+
+    .amt-row { display: flex; align-items: flex-end; gap: 7px; padding: 14px 22px 4px; }
+    .amt-cur { font-size: 21px; font-weight: 600; color: var(--ink-3); line-height: 1; padding-bottom: 6px; }
+    .amt-val {
+      font-size: 40px; font-weight: 690; letter-spacing: -.035em; line-height: 1;
+      color: var(--ink); font-variant-numeric: tabular-nums;
+      max-width: calc(100% - 40px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .caret { width: 2px; height: 30px; border-radius: 2px; background: var(--mint); margin-bottom: 5px; animation: blink 1.1s steps(2, start) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .field-error { margin: 4px 22px 0; min-height: 15px; font-size: 11.5px; font-weight: 550; color: var(--danger); }
+
+    .add-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; padding-bottom: 6px; }
+    .add-scroll::-webkit-scrollbar { display: none; }
+
+    .cat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 4px; padding: 2px 12px 2px; }
+    .cat {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      padding: 6px 0; border: 0; border-radius: 14px; background: none;
+      min-height: 64px; cursor: pointer; transition: transform .12s;
+    }
+    .cat:active { transform: scale(.95); }
+    .cat-ic {
+      width: 44px; height: 44px; border-radius: 15px;
+      display: grid; place-items: center;
+      background: var(--bg); color: var(--fg);
+      border: 1.5px solid transparent;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .cat-name { font-size: 11px; font-weight: 500; color: var(--ink-2); line-height: 1; }
+    .cat[aria-pressed="true"] .cat-ic { border-color: var(--fg); box-shadow: 0 0 0 3px var(--ring); }
+    .cat[aria-pressed="true"] .cat-name { color: var(--ink); font-weight: 660; }
+
+    .detail-card {
+      margin: 8px 16px 4px; padding: 0 14px;
+      background: var(--surface); border: 1px solid var(--line-2);
+      border-radius: 16px; box-shadow: var(--shadow-card);
+    }
+    .drow { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+    .drow + .drow { border-top: 1px solid var(--line-2); }
+    .dlabel { flex: none; width: 38px; font-size: 13px; color: var(--ink-2); }
+    .dinput {
+      flex: 1; min-width: 0; padding: 11px 0; border: 0; background: none;
+      font-size: 13.5px; color: var(--ink); text-align: right; outline: none;
+    }
+    .dinput::placeholder { color: #9BA7A1; }
+    .dinput[type="date"] { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .keypad {
+      flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: 48px; gap: 8px;
+      padding: 10px 16px calc(var(--phone-safe-bottom) + 10px);
+      background: var(--surface); border-top: 1px solid var(--line);
+    }
+    .key {
+      border: 0; border-radius: 13px; background: #F4F7F3; color: var(--ink);
+      font-size: 20px; font-weight: 550; font-variant-numeric: tabular-nums;
+      display: grid; place-items: center; cursor: pointer;
+      transition: background .13s, transform .1s;
+    }
+    .key:hover { background: #ECF2ED; }
+    .key:active { transform: scale(.955); background: #E2EBE5; }
+    .key-del { background: transparent; color: var(--ink-2); }
+    .key-del:hover { background: #F1F4F1; }
+    .key-clear { background: transparent; color: var(--ink-3); font-size: 13px; font-weight: 550; }
+    .key-save {
+      grid-column: 4; grid-row: 2 / span 3; height: auto;
+      background: var(--mint); color: #fff; font-size: 15px; font-weight: 600; letter-spacing: .04em;
+    }
+    .key-save:hover { background: var(--mint-deep); }
+    .key-save:active { transform: scale(.98); background: var(--mint-deep); }
+
+    /* ---------- statistics ---------- */
+    .stats-head { padding: 14px 20px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .stats-head h1 { margin: 0; font-size: 22px; font-weight: 660; letter-spacing: -.02em; }
+    .range-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 13px; background: #E8EFEA; }
+    .range-seg button {
+      height: 36px; padding: 0 13px; border: 0; border-radius: 10px; background: none;
+      color: var(--ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer;
+      transition: background .16s, color .16s, box-shadow .16s;
+    }
+    .range-seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(18, 33, 27, .13); }
+    .range-seg button:active { transform: scale(.97); }
+
+    .month-switch {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 0 20px 14px; padding: 5px 6px;
+      background: var(--surface); border: 1px solid var(--line-2);
+      border-radius: 16px; box-shadow: var(--shadow-card);
+    }
+    .month-switch.static { justify-content: center; padding: 10px 6px; }
+    .month-switch button {
+      width: 44px; height: 44px; display: grid; place-items: center;
+      border: 0; border-radius: 12px; background: none; color: var(--ink-2);
+      cursor: pointer; transition: background .15s, transform .12s;
+    }
+    .month-switch button:hover { background: var(--mint-tint); }
+    .month-switch button:active { transform: scale(.93); }
+    .month-switch button:disabled { opacity: .3; cursor: default; }
+    .month-label { font-size: 14px; font-weight: 620; letter-spacing: -.01em; }
+
+    .donut-wrap { position: relative; width: 196px; max-width: 100%; aspect-ratio: 1; margin: 10px auto 2px; }
+    .donut-wrap svg { display: block; width: 100%; height: 100%; }
+    .donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+    .dc-k { font-size: 11px; color: var(--ink-3); }
+    .dc-v { margin-top: 3px; font-size: 21px; font-weight: 690; letter-spacing: -.025em; color: var(--ink); }
+
+    .legend { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 1px; }
+    .legend li { display: flex; align-items: center; gap: 10px; padding: 7px 0; min-width: 0; }
+    .sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+    .lg-name { font-size: 12.5px; font-weight: 520; color: var(--ink); }
+    .lg-pct { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .lg-amt { width: 74px; text-align: right; font-size: 12.5px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+    .chart-legend { display: flex; align-items: center; gap: 13px; }
+    .cl-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-2); }
+    .bar-wrap { position: relative; margin-top: 12px; }
+    .bar-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .bar-tip {
+      position: absolute; z-index: 3; transform: translate(-50%, -100%);
+      padding: 7px 10px; border-radius: 10px; background: #12211B; color: #fff;
+      font-size: 11px; line-height: 1.45; white-space: nowrap; text-align: left;
+      opacity: 0; pointer-events: none; transition: opacity .15s;
+      box-shadow: 0 8px 18px -8px rgba(10, 25, 20, .6);
+    }
+    .bar-tip[data-show="true"] { opacity: 1; }
+    .bar-tip b { font-weight: 620; font-variant-numeric: tabular-nums; }
+    .chart-summary { margin: 10px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.55; }
+    .chart-summary b { color: var(--ink); font-weight: 620; font-variant-numeric: tabular-nums; }
+
+    .year-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line-2);
+    }
+    .ys-k { font-size: 11px; color: var(--ink-3); }
+    .ys-v { font-size: 14px; font-weight: 640; color: var(--ink); letter-spacing: -.01em; }
+
+    /* ---------- profile ---------- */
+    .profile-head { padding: 14px 20px 12px; }
+    .profile-head h1 { margin: 0; font-size: 22px; font-weight: 660; letter-spacing: -.02em; }
+
+    .user-card { display: flex; align-items: center; gap: 14px; margin: 0 20px; padding: 18px; }
+    .user-av {
+      width: 56px; height: 56px; border-radius: 50%; flex: none;
+      display: grid; place-items: center;
+      background: var(--mint-soft); color: var(--mint-ink);
+      border: 1px solid #D3E8DE; font-size: 20px; font-weight: 660;
+    }
+    .user-name { font-size: 17px; font-weight: 660; letter-spacing: -.01em; }
+    .user-sub { font-size: 11.5px; color: var(--ink-3); }
+    .user-badge {
+      margin-left: auto; flex: none;
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 26px; padding: 0 9px; border-radius: 999px;
+      background: var(--amber-soft); color: var(--amber-ink);
+      font-size: 11px; font-weight: 600;
+    }
+
+    .budget-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .budget-num { margin: 10px 0 0; font-size: 24px; font-weight: 690; letter-spacing: -.025em; }
+    .budget-num small { font-size: 13px; font-weight: 550; color: var(--ink-3); letter-spacing: 0; }
+    .progress { position: relative; height: 10px; margin: 14px 0 10px; border-radius: 999px; background: var(--mint-tint); overflow: hidden; }
+    .progress-fill {
+      display: block; height: 100%; width: 100%; border-radius: 999px; background: var(--mint);
+      transform-origin: left center; transform: scaleX(0);
+      transition: transform .55s var(--ease);
+    }
+    .progress-fill.over { background: var(--danger); }
+    .budget-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); }
+    .budget-meta b { color: var(--ink-2); font-weight: 620; font-variant-numeric: tabular-nums; }
+
+    .list-card { list-style: none; margin: 0; padding: 2px 16px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 18px; box-shadow: var(--shadow-card); }
+    .lrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 10px 0; border: 0; background: none; text-align: left; cursor: pointer; }
+    .lrow + .lrow { border-top: 1px solid var(--line-2); }
+    .lrow:active .lrow-name { opacity: .65; }
+    .lrow-ic { width: 34px; height: 34px; border-radius: 11px; flex: none; display: grid; place-items: center; background: var(--mint-tint); color: var(--mint-ink); }
+    .lrow-name { font-size: 14px; font-weight: 530; color: var(--ink); }
+    .lrow-sub { margin-top: 2px; font-size: 11.5px; color: var(--ink-3); }
+    .chev { margin-left: auto; color: #AFBAB4; flex: none; }
+    .lrow-tag { margin-left: auto; font-size: 11px; color: var(--mint-ink); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+
+    .switch {
+      position: relative; flex: none; width: 46px; height: 28px; margin-left: auto;
+      border: 0; border-radius: 999px; background: #D9E0DB; cursor: pointer;
+      transition: background .18s;
+    }
+    .switch span {
+      position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+      border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(10, 25, 20, .22);
+      transition: transform .18s var(--ease);
+    }
+    .switch[aria-checked="true"] { background: var(--mint); }
+    .switch[aria-checked="true"] span { transform: translateX(18px); }
+
+    /* ---------- sheet + toast ---------- */
+    .scrim { position: absolute; inset: 0; z-index: 30; background: rgba(9, 24, 18, .42); opacity: 0; transition: opacity .22s; }
+    .scrim[data-open="true"] { opacity: 1; }
+    .sheet {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 31;
+      padding: 10px 20px calc(var(--phone-safe-bottom) + 14px);
+      background: var(--surface); border-radius: 26px 26px 0 0;
+      transform: translateY(101%); transition: transform .3s var(--ease);
+      box-shadow: 0 -12px 32px -18px rgba(9, 24, 18, .5);
+    }
+    .sheet[data-open="true"] { transform: translateY(0); }
+    .sheet-grab { width: 38px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: #DCE4DF; }
+    .sheet-title { margin: 0; font-size: 16px; font-weight: 660; letter-spacing: -.01em; }
+    .sheet-sub { margin: 4px 0 12px; font-size: 11.5px; color: var(--ink-3); }
+    .sheet-list { list-style: none; margin: 0 0 12px; padding: 0; }
+    .sheet-list button {
+      display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 0;
+      border: 0; background: none; text-align: left; cursor: pointer;
+    }
+    .sheet-list li + li button { border-top: 1px solid var(--line-2); }
+    .sheet-list .check { margin-left: auto; color: var(--mint); }
+    .sheet-close {
+      width: 100%; height: 46px; border: 0; border-radius: 14px;
+      background: #F1F5F1; color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .sheet-close:active { transform: scale(.985); }
+
+    .toast {
+      position: absolute; left: 50%; bottom: calc(var(--phone-safe-bottom) + 88px); z-index: 40;
+      max-width: calc(100% - 40px); padding: 9px 14px; border-radius: 12px;
+      background: #12211B; color: #fff; font-size: 12.5px; font-weight: 500; text-align: center;
+      opacity: 0; transform: translate(-50%, 8px); pointer-events: none;
+      transition: opacity .2s, transform .2s var(--ease);
+    }
+    .toast[data-show="true"] { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone-frame" data-phone-shell data-platform="neutral">
+    <span class="hardware-button volume" aria-hidden="true"></span>
+    <span class="hardware-button power" aria-hidden="true"></span>
+
+    <section class="phone-screen" data-phone-screen>
+      <main class="phone-content" data-phone-content>
+        <!-- APP CONTENT START -->
+        <div class="app" id="app">
+
+          <!-- ============ HOME ============ -->
+          <section class="screen" id="screen-home" tabindex="-1" aria-label="首页">
+            <header class="home-head">
+              <div class="od-stack" style="--od-gap:0px">
+                <span class="eyebrow" id="homeEyebrow">日常账本 · 10月29日 周四</span>
+                <h1 class="greet">早上好</h1>
+              </div>
+            </header>
+
+            <div class="screen-scroll" id="homeScroll">
+              <section class="balance-card" aria-labelledby="bcLabel">
+                <div class="bc-top">
+                  <span class="bc-label" id="bcLabel">本月支出</span>
+                  <span class="bc-delta" id="bcDelta"></span>
+                </div>
+                <p class="bc-amount" id="bcExpense">¥0.00</p>
+                <div class="bc-split">
+                  <div class="od-stat" style="--od-gap:3px">
+                    <span class="bc-k">本月收入</span>
+                    <span class="bc-v in" id="bcIncome">¥0.00</span>
+                  </div>
+                  <div class="od-stat" style="--od-gap:3px">
+                    <span class="bc-k">本月结余</span>
+                    <span class="bc-v" id="bcBalance">¥0.00</span>
+                  </div>
+                </div>
+              </section>
+
+              <div class="sec-head">
+                <h2>最近交易</h2>
+                <button class="link-btn" type="button" data-goto="stats">
+                  查看统计
+                  <svg class="od-icon ic-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+                </button>
+              </div>
+
+              <div id="homeList"></div>
+            </div>
+
+            <button class="fab" id="fabAdd" type="button">
+              <svg class="od-icon ic-22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+              记一笔
+            </button>
+          </section>
+
+          <!-- ============ ADD ============ -->
+          <section class="screen" id="screen-add" tabindex="-1" aria-label="记一笔" hidden>
+            <header class="scr-head">
+              <button class="icon-btn" id="addBack" type="button" aria-label="返回上一页">
+                <svg class="od-icon ic-22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+              </button>
+              <h1 class="scr-title center">记一笔</h1>
+              <span class="od-spacer"></span>
+            </header>
+
+            <div class="add-body">
+              <div class="seg" role="tablist" aria-label="收支类型">
+                <button type="button" role="tab" data-type="expense" aria-selected="true" id="segExpense">支出</button>
+                <button type="button" role="tab" data-type="income" aria-selected="false" id="segIncome">收入</button>
+              </div>
+
+              <div class="amt-row">
+                <span class="amt-cur" id="amtCur">¥</span>
+                <span class="amt-val" id="amtVal" aria-live="polite">0</span>
+                <span class="caret" aria-hidden="true"></span>
+              </div>
+              <p class="field-error" id="amtError" hidden></p>
+
+              <div class="add-scroll">
+                <div class="cat-grid" id="catGrid" role="group" aria-label="选择分类"></div>
+
+                <div class="detail-card">
+                  <div class="drow">
+                    <label class="dlabel" for="txDate">日期</label>
+                    <input class="dinput" type="date" id="txDate" value="2026-10-29" />
+                  </div>
+                  <div class="drow">
+                    <label class="dlabel" for="txNote">备注</label>
+                    <input class="dinput" type="text" id="txNote" maxlength="20" placeholder="写下这笔钱的用途" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="keypad" id="keypad" aria-label="数字键盘">
+                <button class="key" type="button" data-key="1">1</button>
+                <button class="key" type="button" data-key="2">2</button>
+                <button class="key" type="button" data-key="3">3</button>
+                <button class="key key-del" type="button" data-key="del" aria-label="删除一位">
+                  <svg class="od-icon ic-22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9L3.5 12 9 6Z"/><path d="m11.8 9.6 4.8 4.8M16.6 9.6l-4.8 4.8"/></svg>
+                </button>
+                <button class="key" type="button" data-key="4">4</button>
+                <button class="key" type="button" data-key="5">5</button>
+                <button class="key" type="button" data-key="6">6</button>
+                <button class="key key-save" type="button" data-key="save">完成</button>
+                <button class="key" type="button" data-key="7">7</button>
+                <button class="key" type="button" data-key="8">8</button>
+                <button class="key" type="button" data-key="9">9</button>
+                <button class="key" type="button" data-key=".">.</button>
+                <button class="key" type="button" data-key="0">0</button>
+                <button class="key key-clear" type="button" data-key="clear">清空</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ STATISTICS ============ -->
+          <section class="screen" id="screen-stats" tabindex="-1" aria-label="统计" hidden>
+            <header class="stats-head">
+              <h1>统计</h1>
+              <div class="range-seg" id="rangeSeg" role="tablist" aria-label="统计范围">
+                <button type="button" role="tab" data-range="month" aria-selected="true">按月</button>
+                <button type="button" role="tab" data-range="year" aria-selected="false">按年</button>
+              </div>
+            </header>
+            <div class="screen-scroll">
+              <div class="month-switch" id="rangeSwitch">
+                <button type="button" id="monthPrev" aria-label="上一个月">
+                  <svg class="od-icon ic-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+                </button>
+                <span class="month-label" id="statMonthLabel">2026年10月</span>
+                <button type="button" id="monthNext" aria-label="下一个月">
+                  <svg class="od-icon ic-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+                </button>
+              </div>
+
+              <section class="card" aria-labelledby="donutTitle">
+                <div class="od-row" style="justify-content:space-between">
+                  <h2 class="card-title" id="donutTitle">支出构成</h2>
+                  <span class="card-sub" id="donutSub">10月</span>
+                </div>
+                <div class="donut-wrap">
+                  <svg id="donutSvg" viewBox="0 0 160 160" role="img" aria-label="按分类的支出占比环形图"></svg>
+                  <div class="donut-center">
+                    <span class="dc-k">总支出</span>
+                    <span class="dc-v" id="donutTotal">¥0</span>
+                  </div>
+                </div>
+                <ul class="legend" id="donutLegend"></ul>
+                <div class="year-stats" id="yearStats" hidden>
+                  <div class="od-stat" style="--od-gap:3px">
+                    <span class="ys-k">月均支出</span>
+                    <span class="ys-v" id="ysAvg">¥0</span>
+                  </div>
+                  <div class="od-stat" style="--od-gap:3px">
+                    <span class="ys-k">支出最高月</span>
+                    <span class="ys-v" id="ysPeak">—</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card" aria-labelledby="barTitle">
+                <div class="od-row" style="justify-content:space-between;flex-wrap:wrap;row-gap:8px">
+                  <h2 class="card-title" id="barTitle">近 6 个月收支</h2>
+                  <div class="chart-legend">
+                    <span class="cl-item"><span class="sw" style="background:#0C7E60"></span>支出</span>
+                    <span class="cl-item"><span class="sw" style="background:#D9651C"></span>收入</span>
+                  </div>
+                </div>
+                <div class="bar-wrap">
+                  <svg id="barSvg" viewBox="0 0 340 200" role="img" aria-label="近 6 个月支出与收入对比柱状图"></svg>
+                  <div class="bar-tip" id="barTip" role="status"></div>
+                </div>
+                <p class="chart-summary" id="barSummary"></p>
+              </section>
+            </div>
+          </section>
+
+          <!-- ============ PROFILE ============ -->
+          <section class="screen" id="screen-profile" tabindex="-1" aria-label="我的" hidden>
+            <header class="profile-head">
+              <h1>我的</h1>
+            </header>
+            <div class="screen-scroll">
+              <section class="card user-card" aria-label="开发者信息">
+                <div class="user-av" aria-hidden="true">丘</div>
+                <div class="od-field" style="--od-gap:3px">
+                  <span class="user-name">丘知叶</span>
+                  <span class="user-sub">本地记账本 · 无需登录</span>
+                </div>
+                <span class="user-badge">
+                  <svg class="od-icon ic-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 14.6 9l6 .8-4.3 4.2 1 6-5.3-2.9-5.3 2.9 1-6L3.4 9.8l6-.8L12 3.5Z"/></svg>
+                  开发者
+                </span>
+              </section>
+
+              <section class="card" aria-labelledby="budgetTitle" style="margin-top:14px">
+                <div class="budget-top">
+                  <h2 class="card-title" id="budgetTitle">本月预算</h2>
+                  <span class="card-sub">10月</span>
+                </div>
+                <p class="budget-num"><span id="budgetUsed">¥0</span> <small id="budgetTotal">/ ¥5,000</small></p>
+                <div class="progress" role="progressbar" aria-labelledby="budgetTitle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="budgetBar">
+                  <span class="progress-fill" id="budgetFill"></span>
+                </div>
+                <div class="budget-meta">
+                  <span id="budgetMetaLeft">已用 0%</span>
+                  <span id="budgetMetaRight">剩余 ¥5,000</span>
+                </div>
+              </section>
+
+              <div class="sec-head"><h2>账本管理</h2></div>
+              <ul class="list-card">
+                <li>
+                  <button class="lrow" type="button" id="ledgerRow">
+                    <span class="lrow-ic">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h11a3 3 0 0 1 3 3v12H7.5A2.5 2.5 0 0 1 5 17V4.5Z"/><path d="M5 17a2.5 2.5 0 0 1 2.5-2.5H19"/><path d="M9 8h6"/></svg>
+                    </span>
+                    <span class="od-field od-fill" style="--od-gap:2px">
+                      <span class="lrow-name" id="ledgerName">日常账本</span>
+                      <span class="lrow-sub" id="ledgerSub">本月 19 笔 · 2 个账本</span>
+                    </span>
+                    <span class="chev">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+
+              <div class="sec-head"><h2>通用设置</h2></div>
+              <ul class="list-card">
+                <li>
+                  <button class="lrow" type="button" id="remindRow" role="switch" aria-checked="true">
+                    <span class="lrow-ic">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+                    </span>
+                    <span class="od-field od-fill" style="--od-gap:2px">
+                      <span class="lrow-name">每日记账提醒</span>
+                      <span class="lrow-sub" id="remindSub">每天 21:00 提醒我记一笔</span>
+                    </span>
+                    <span class="switch" aria-hidden="true"><span></span></span>
+                  </button>
+                </li>
+                <li>
+                  <button class="lrow" type="button" id="backupRow">
+                    <span class="lrow-ic">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10.5 4 4 4-4"/><path d="M5 16.5v2A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+                    </span>
+                    <span class="od-field od-fill" style="--od-gap:2px">
+                      <span class="lrow-name">数据备份</span>
+                      <span class="lrow-sub" id="backupSub">上次备份：昨天 21:40</span>
+                    </span>
+                    <span class="chev">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+                    </span>
+                  </button>
+                </li>
+                <li>
+                  <button class="lrow" type="button" id="aboutRow">
+                    <span class="lrow-ic">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 8v.01"/></svg>
+                    </span>
+                    <span class="od-field od-fill" style="--od-gap:2px">
+                      <span class="lrow-name">关于记账本</span>
+                      <span class="lrow-sub">丘知叶 开发 · 本地运行 v1.0</span>
+                    </span>
+                    <span class="chev">
+                      <svg class="od-icon ic-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+              <p style="margin:16px 4px 0;text-align:center;font-size:11px;color:var(--ink-3)">本地应用，无需登录 · 数据只保存在本机</p>
+            </div>
+          </section>
+
+          <!-- ============ TAB BAR ============ -->
+          <nav class="tabbar" id="tabbar" aria-label="主导航">
+            <button class="tab" type="button" data-goto="home" aria-current="page">
+              <svg class="od-icon ic-23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.6 12 4l8 6.6v8.2a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 18.8v-8.2Z"/><path d="M9.6 20.4v-5.2h4.8v5.2"/></svg>
+              <span>首页</span>
+            </button>
+            <button class="tab" type="button" data-goto="stats">
+              <svg class="od-icon ic-23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 19v-7.5M12 19V5.5M18 19v-4.5"/></svg>
+              <span>统计</span>
+            </button>
+            <button class="tab tab-add" type="button" data-goto="add" aria-label="记一笔">
+              <span class="tab-add-ic">
+                <svg class="od-icon ic-22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+              </span>
+              <span>记一笔</span>
+            </button>
+            <button class="tab" type="button" data-goto="profile">
+              <svg class="od-icon ic-23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.8" r="3.5"/><path d="M5.3 19.6c.9-3.3 3.5-5.1 6.7-5.1s5.8 1.8 6.7 5.1"/></svg>
+              <span>我的</span>
+            </button>
+          </nav>
+
+          <!-- ============ OVERLAYS ============ -->
+          <div class="scrim" id="scrim" hidden></div>
+          <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+            <span class="sheet-grab" aria-hidden="true"></span>
+            <h2 class="sheet-title" id="sheetTitle">管理账本</h2>
+            <p class="sheet-sub">账本用来区分不同场景的开支</p>
+            <ul class="sheet-list" id="sheetList"></ul>
+            <button class="sheet-close" type="button" id="sheetClose">完成</button>
+          </div>
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+        </div>
+        <!-- APP CONTENT END -->
+      </main>
+
+      <div class="status-bar" aria-hidden="true">
+        <span class="status-time">9:41</span>
+        <span class="status-cutout-zone"></span>
+        <span class="status-icons">
+          <svg class="connectivity" viewBox="0 0 15 12"><path d="M1.5 10.5v-2m4 2v-4.5m4 4.5v-7m4 7v-9"/></svg>
+          <svg class="wifi" viewBox="0 0 16 12"><path d="M1.5 4.7a9.2 9.2 0 0 1 13 0M4.2 7.3a5.4 5.4 0 0 1 7.6 0M6.9 10a1.55 1.55 0 0 1 2.2 0"/></svg>
+          <svg class="battery" viewBox="0 0 20 11"><rect x=".75" y="1.25" width="16.5" height="8.5" rx="2"/><path d="M18.5 4v3M3.2 3.4h10.4v4.2H3.2z" fill="currentColor" stroke="none"/></svg>
+        </span>
+      </div>
+      <div class="camera-dot" aria-hidden="true"></div>
+      <div class="gesture-indicator" aria-hidden="true"></div>
+    </section>
+  </div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    /* ---------- constants ---------- */
+    const TODAY = "2026-10-29";
+    const CUR = "¥";
+    const BUDGET = 5000;
+    const MONTH = TODAY.slice(0, 7);
+    const MONTH_MIN = "2026-01";
+
+    const TINTS = {
+      mint:    { bg: "#E6F4EC", fg: "#0A6B51", ring: "rgba(10,107,81,.15)" },
+      blue:    { bg: "#E7EFFA", fg: "#1F5EA8", ring: "rgba(31,94,168,.15)" },
+      yellow:  { bg: "#FBF0DA", fg: "#8A5F08", ring: "rgba(138,95,8,.15)" },
+      orange:  { bg: "#FCEDE2", fg: "#A8551A", ring: "rgba(168,85,26,.15)" },
+      magenta: { bg: "#FCEBF2", fg: "#A23A66", ring: "rgba(162,58,102,.15)" },
+      violet:  { bg: "#ECEAF9", fg: "#46367F", ring: "rgba(70,54,127,.15)" },
+      green:   { bg: "#E8F3E4", fg: "#2A6B1C", ring: "rgba(42,107,28,.15)" },
+      red:     { bg: "#FCEAE8", fg: "#A8362F", ring: "rgba(168,54,47,.15)" },
+      gray:    { bg: "#EEF1EE", fg: "#5F6B65", ring: "rgba(95,107,101,.15)" }
+    };
+
+    const CATS = {
+      expense: [
+        { id: "food",      name: "餐饮", tone: "blue",    icon: "bowl" },
+        { id: "transport", name: "交通", tone: "yellow",  icon: "bus" },
+        { id: "shopping",  name: "购物", tone: "orange",  icon: "bag" },
+        { id: "fun",       name: "娱乐", tone: "magenta", icon: "game" },
+        { id: "home",      name: "居家", tone: "mint",    icon: "house" },
+        { id: "medical",   name: "医疗", tone: "violet",  icon: "medical" },
+        { id: "study",     name: "学习", tone: "blue",    icon: "book" },
+        { id: "repay",     name: "还款", tone: "green",   icon: "card" },
+        { id: "packet",    name: "红包", tone: "red",     icon: "redpacket" },
+        { id: "other",     name: "其他", tone: "gray",    icon: "dots" }
+      ],
+      income: [
+        { id: "salary",    name: "工资", tone: "mint",    icon: "bill" },
+        { id: "bonus",     name: "奖金", tone: "orange",  icon: "gift" },
+        { id: "parttime",  name: "兼职", tone: "blue",    icon: "case" },
+        { id: "invest",    name: "理财", tone: "violet",  icon: "trend" },
+        { id: "redpacket", name: "红包", tone: "magenta", icon: "envelope" },
+        { id: "otherin",   name: "其他", tone: "gray",    icon: "dots" }
+      ]
+    };
+    const ALL_CATS = [...CATS.expense, ...CATS.income];
+
+    const ICONS = {
+      bowl: '<path d="M4 11.5h16a8 8 0 0 1-8 8 8 8 0 0 1-8-8Z"/><path d="M9 8.2V6.4M12 8.2V5M15 8.2V6.4"/>',
+      bus: '<rect x="4" y="4.5" width="16" height="12.5" rx="3"/><path d="M4 11h16"/><path d="M7.5 17v2M16.5 17v2"/><circle cx="8" cy="14" r=".85" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r=".85" fill="currentColor" stroke="none"/>',
+      bag: '<path d="M5.5 8.5h13L17.4 20h-10.8L5.5 8.5Z"/><path d="M9 8.5V6.8a3 3 0 0 1 6 0v1.7"/>',
+      game: '<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 11v4M6 13h4"/><circle cx="15.8" cy="11.8" r=".9" fill="currentColor" stroke="none"/><circle cx="18" cy="14.2" r=".9" fill="currentColor" stroke="none"/>',
+      house: '<path d="M4 10.8 12 4l8 6.8v8.2a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19v-8.2Z"/><path d="M9.5 20.6v-5.3h5v5.3"/>',
+      medical: '<rect x="4" y="4" width="16" height="16" rx="5"/><path d="M12 8.6v6.8M8.6 12h6.8"/>',
+      book: '<path d="M12 6.6C10.3 5.2 7.9 4.6 5 4.6v13c2.9 0 5.3.6 7 2 1.7-1.4 4.1-2 7-2v-13c-2.9 0-5.3.6-7 2Z"/><path d="M12 6.6v13"/>',
+      dots: '<circle cx="6.2" cy="12" r="1.25" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none"/><circle cx="17.8" cy="12" r="1.25" fill="currentColor" stroke="none"/>',
+      bill: '<rect x="3" y="6.5" width="18" height="11" rx="2.5"/><circle cx="12" cy="12" r="2.4"/><path d="M6.6 9.6v.01M17.4 14.4v.01"/>',
+      gift: '<path d="M4 9.5h16v3H4zM5.5 12.5h13V20h-13z"/><path d="M12 9.5V20"/><path d="M12 9.5S10.9 5 8.7 5a1.9 1.9 0 0 0 0 3.8H12Zm0 0S13.1 5 15.3 5a1.9 1.9 0 0 1 0 3.8H12Z"/>',
+      case: '<rect x="3.5" y="7.5" width="17" height="11.5" rx="2.5"/><path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5M3.5 12h17"/>',
+      trend: '<path d="M4 16.5 9 11l3.2 3.2L20 6.5"/><path d="M15.5 6.5H20v4.5"/>',
+      envelope: '<rect x="3.5" y="6" width="17" height="12" rx="2.5"/><path d="m4.6 7.6 7.4 5.4 7.4-5.4"/>',
+      card: '<rect x="3" y="6" width="18" height="12" rx="2.6"/><path d="M3 10.2h18"/><path d="M6.5 14.6h3.6"/><path d="M15.2 14.6h2.3"/>',
+      redpacket: '<path d="M6.6 3.6h10.8a1.4 1.4 0 0 1 1.4 1.4v14a1.4 1.4 0 0 1-1.4 1.4H6.6A1.4 1.4 0 0 1 5.2 19V5a1.4 1.4 0 0 1 1.4-1.4Z"/><path d="M5.2 10.6c2.5 1.4 4.7 2.1 6.8 2.1s4.3-.7 6.8-2.1"/><circle cx="12" cy="8" r="1.5"/>',
+      chevron: '<path d="m9.5 5.5 6.5 6.5-6.5 6.5"/>',
+      check: '<path d="m5.5 12.5 4.2 4.2 8.8-9.4"/>',
+      arrowDown: '<path d="M12 5v13M6.5 12.5 12 18l5.5-5.5"/>'
+    };
+
+    const icon = (name, size = "ic-22") =>
+      '<svg class="od-icon ' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      (ICONS[name] || ICONS.dots) + "</svg>";
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const money = (n) => new Intl.NumberFormat("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    const moneyShort = (n) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(n);
+    const catById = (id) => ALL_CATS.find((c) => c.id === id) || ALL_CATS[0];
+
+    /* ---------- seed data ---------- */
+    let uid = 0;
+    const T = (type, cat, amount, note, date, time) => ({ id: "seed" + (++uid), type, cat, amount, note, date, time });
+
+    const transactions = [
+      /* 2026-10 */
+      T("expense", "food", 28, "楼下咖啡", "2026-10-29", "08:12"),
+      T("expense", "transport", 6, "地铁 2 号线", "2026-10-29", "08:40"),
+      T("expense", "food", 42.5, "公司楼下简餐", "2026-10-29", "12:26"),
+      T("expense", "shopping", 129, "洗衣液和收纳盒", "2026-10-28", "19:05"),
+      T("expense", "food", 86, "和朋友吃火锅", "2026-10-28", "12:10"),
+      T("expense", "transport", 24, "打车回家", "2026-10-27", "22:15"),
+      T("expense", "fun", 68, "电影票两张", "2026-10-27", "15:30"),
+      T("expense", "home", 199, "换季被套", "2026-10-26", "14:20"),
+      T("expense", "transport", 6, "地铁 2 号线", "2026-10-26", "08:35"),
+      T("expense", "food", 35, "早餐和午餐", "2026-10-26", "12:00"),
+      T("expense", "shopping", 302, "超市采购", "2026-10-25", "17:42"),
+      T("expense", "study", 59, "一本小说", "2026-10-24", "20:10"),
+      T("expense", "medical", 38.5, "感冒药", "2026-10-22", "10:05"),
+      T("income", "parttime", 800, "设计外包尾款", "2026-10-21", "15:00"),
+      T("expense", "shopping", 268, "秋季外套", "2026-10-20", "16:40"),
+      T("expense", "food", 168, "周末下午茶", "2026-10-19", "16:20"),
+      T("expense", "fun", 45, "音乐会员", "2026-10-18", "09:00"),
+      T("expense", "repay", 600, "信用卡账单", "2026-10-16", "20:30"),
+      T("income", "invest", 126.4, "基金分红", "2026-10-15", "09:00"),
+      T("expense", "packet", 200, "同事婚礼随礼", "2026-10-11", "12:40"),
+      T("expense", "food", 156, "周末聚餐", "2026-10-12", "18:30"),
+      T("income", "salary", 8200, "十月工资", "2026-10-10", "10:00"),
+      T("income", "redpacket", 200, "朋友生日回礼", "2026-10-08", "21:10"),
+      T("expense", "transport", 100, "地铁月卡", "2026-10-03", "07:50"),
+      T("expense", "home", 2200, "十月房租", "2026-10-01", "09:00"),
+      /* 2026-09 */
+      T("expense", "home", 2200, "九月房租", "2026-09-01", "09:00"),
+      T("expense", "food", 860, "月中聚餐与外卖", "2026-09-12", "19:20"),
+      T("expense", "shopping", 640, "家居小物", "2026-09-18", "15:10"),
+      T("expense", "fun", 180, "演出门票", "2026-09-20", "20:00"),
+      T("expense", "transport", 210, "打车与地铁", "2026-09-25", "08:20"),
+      T("income", "salary", 8200, "九月工资", "2026-09-10", "10:00"),
+      T("income", "parttime", 500, "插画稿费", "2026-09-22", "14:00"),
+      /* 2026-08 */
+      T("expense", "home", 2200, "八月房租", "2026-08-01", "09:00"),
+      T("expense", "food", 920, "八月餐饮", "2026-08-14", "18:40"),
+      T("expense", "shopping", 380, "换季衣物", "2026-08-09", "16:00"),
+      T("expense", "transport", 260, "八月交通", "2026-08-26", "08:30"),
+      T("expense", "study", 240, "线上课程", "2026-08-17", "21:00"),
+      T("income", "salary", 8200, "八月工资", "2026-08-10", "10:00"),
+      /* 2026-07 */
+      T("expense", "home", 2200, "七月房租", "2026-07-01", "09:00"),
+      T("expense", "food", 780, "七月餐饮", "2026-07-16", "19:00"),
+      T("expense", "shopping", 520, "夏季用品", "2026-07-11", "15:30"),
+      T("expense", "fun", 320, "周末露营", "2026-07-19", "11:00"),
+      T("expense", "medical", 160, "体检", "2026-07-06", "09:30"),
+      T("income", "salary", 8200, "七月工资", "2026-07-10", "10:00"),
+      T("income", "bonus", 1200, "季度奖金", "2026-07-15", "10:00"),
+      /* 2026-06 */
+      T("expense", "home", 2200, "六月房租", "2026-06-01", "09:00"),
+      T("expense", "food", 700, "六月餐饮", "2026-06-15", "18:00"),
+      T("expense", "shopping", 420, "日用品", "2026-06-08", "20:00"),
+      T("expense", "transport", 190, "六月交通", "2026-06-24", "08:10"),
+      T("income", "salary", 8200, "六月工资", "2026-06-10", "10:00"),
+      /* 2026-05 */
+      T("expense", "home", 2200, "五月房租", "2026-05-01", "09:00"),
+      T("expense", "food", 640, "五月餐饮", "2026-05-13", "18:20"),
+      T("expense", "shopping", 300, "小家电", "2026-05-07", "14:00"),
+      T("expense", "transport", 170, "五月交通", "2026-05-27", "08:00"),
+      T("expense", "fun", 150, "桌游局", "2026-05-23", "20:30"),
+      T("income", "salary", 8200, "五月工资", "2026-05-10", "10:00"),
+      T("income", "parttime", 600, "翻译稿费", "2026-05-19", "16:00"),
+      /* 2026-04 */
+      T("expense", "home", 2200, "四月房租", "2026-04-01", "09:00"),
+      T("expense", "food", 680, "四月餐饮", "2026-04-13", "18:20"),
+      T("expense", "shopping", 890, "换了台显示器", "2026-04-08", "20:00"),
+      T("expense", "fun", 240, "周末展览", "2026-04-19", "14:30"),
+      T("expense", "transport", 160, "四月交通", "2026-04-27", "08:10"),
+      T("income", "salary", 8200, "四月工资", "2026-04-10", "10:00"),
+      T("income", "invest", 88.6, "理财收益", "2026-04-28", "09:00"),
+      /* 2026-03 */
+      T("expense", "home", 2200, "三月房租", "2026-03-01", "09:00"),
+      T("expense", "food", 720, "三月餐饮", "2026-03-15", "18:40"),
+      T("expense", "shopping", 260, "换季收纳", "2026-03-09", "14:00"),
+      T("expense", "medical", 280, "春季体检", "2026-03-06", "09:30"),
+      T("expense", "study", 199, "设计课程", "2026-03-18", "21:00"),
+      T("expense", "transport", 150, "三月交通", "2026-03-24", "08:15"),
+      T("income", "salary", 8200, "三月工资", "2026-03-10", "10:00"),
+      T("income", "parttime", 400, "海报设计稿费", "2026-03-26", "15:00"),
+      /* 2026-02 */
+      T("expense", "home", 2200, "二月房租", "2026-02-01", "09:00"),
+      T("expense", "shopping", 480, "年货采购", "2026-02-10", "15:20"),
+      T("expense", "food", 760, "春节聚餐", "2026-02-14", "18:00"),
+      T("expense", "transport", 320, "回家高铁票", "2026-02-16", "09:10"),
+      T("income", "salary", 8200, "二月工资", "2026-02-10", "10:00"),
+      T("income", "redpacket", 1200, "春节红包", "2026-02-17", "20:00"),
+      /* 2026-01 */
+      T("expense", "home", 2200, "一月房租", "2026-01-01", "09:00"),
+      T("expense", "food", 690, "一月餐饮", "2026-01-12", "18:30"),
+      T("expense", "shopping", 350, "冬季日用品", "2026-01-08", "16:00"),
+      T("expense", "transport", 145, "一月交通", "2026-01-22", "08:20"),
+      T("income", "salary", 8200, "一月工资", "2026-01-10", "10:00"),
+      T("income", "bonus", 8000, "年终奖", "2026-01-20", "10:00")
+    ];
+
+    const LEDGERS = [
+      { name: "日常账本", count: 19 },
+      { name: "旅行账本", count: 32 }
+    ];
+
+    const ui = {
+      screen: "home",
+      type: "expense",
+      category: "food",
+      raw: "0",
+      date: TODAY,
+      note: "",
+      statsMonth: MONTH,
+      range: "month",
+      statsYear: TODAY.slice(0, 4),
+      ledger: "日常账本",
+      remind: true,
+      addReturn: "home"
+    };
+
+    /* ---------- helpers ---------- */
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    const monthOf = (d) => d.slice(0, 7);
+    const sumOf = (type, mk) => transactions
+      .filter((t) => t.type === type && (!mk || monthOf(t.date) === mk))
+      .reduce((s, t) => s + t.amount, 0);
+
+    function shiftMonth(mk, delta) {
+      const y = Number(mk.slice(0, 4));
+      const m = Number(mk.slice(5, 7));
+      const d = new Date(y, m - 1 + delta, 1);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    }
+
+    function cnDate(iso) {
+      return Number(iso.slice(5, 7)) + "月" + Number(iso.slice(8, 10)) + "日";
+    }
+
+    const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    function weekdayOf(iso) {
+      const d = new Date(iso + "T00:00:00");
+      return WEEKDAYS[d.getDay()];
+    }
+
+    function dayLabel(iso) {
+      const yesterday = shiftDay(TODAY, -1);
+      if (iso === TODAY) return "今天 · " + cnDate(iso);
+      if (iso === yesterday) return "昨天 · " + cnDate(iso);
+      return cnDate(iso) + " · " + weekdayOf(iso);
+    }
+
+    function shiftDay(iso, delta) {
+      const d = new Date(iso + "T00:00:00");
+      d.setDate(d.getDate() + delta);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    let toastTimer = null;
+    function toast(message) {
+      const el = $("#toast");
+      el.textContent = message;
+      el.dataset.show = "true";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.dataset.show = "false"; }, 2000);
+    }
+
+    /* ---------- home ---------- */
+    function renderHome() {
+      const expense = sumOf("expense", MONTH);
+      const income = sumOf("income", MONTH);
+      const prevExpense = sumOf("expense", shiftMonth(MONTH, -1));
+
+      $("#homeEyebrow").textContent = ui.ledger + " · " + cnDate(TODAY) + " " + weekdayOf(TODAY);
+      $("#bcExpense").textContent = CUR + money(expense);
+      $("#bcIncome").textContent = CUR + money(income);
+      $("#bcBalance").textContent = CUR + money(income - expense);
+
+      const delta = $("#bcDelta");
+      if (prevExpense > 0) {
+        const pct = Math.abs((expense - prevExpense) / prevExpense) * 100;
+        const down = expense <= prevExpense;
+        delta.innerHTML =
+          '<span style="display:inline-flex;transform:' + (down ? "none" : "rotate(180deg)") + '">' +
+          icon("arrowDown", "ic-16") + "</span>" +
+          "较上月" + (down ? "减少 " : "增加 ") + pct.toFixed(1) + "%";
+      } else {
+        delta.textContent = "暂无上月数据";
+      }
+
+      const monthTx = transactions.filter((t) => monthOf(t.date) === MONTH);
+      const host = $("#homeList");
+
+      if (!monthTx.length) {
+        host.innerHTML =
+          '<div class="home-empty">' +
+          '<span class="he-ic">' + icon("bill", "ic-22") + "</span>" +
+          "<p>这个月还没有记录</p>" +
+          "<span>点下面的「记一笔」，从第一笔开始</span>" +
+          "</div>";
+        return;
+      }
+
+      const sorted = [...monthTx].sort((a, b) =>
+        a.date === b.date ? b.time.localeCompare(a.time) : b.date.localeCompare(a.date)
+      );
+
+      const groups = [];
+      const map = new Map();
+      sorted.forEach((t) => {
+        if (!map.has(t.date)) {
+          const g = { date: t.date, items: [] };
+          map.set(t.date, g);
+          groups.push(g);
+        }
+        map.get(t.date).items.push(t);
+      });
+
+      host.innerHTML = groups.map((g) => {
+        const de = g.items.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        const di = g.items.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const parts = [];
+        if (de > 0) parts.push("支出 " + CUR + money(de));
+        if (di > 0) parts.push("收入 " + CUR + money(di));
+        return (
+          '<div class="day-group">' +
+            '<div class="day-head"><span>' + esc(dayLabel(g.date)) + "</span>" +
+              '<span class="day-total">' + parts.join(" · ") + "</span></div>" +
+            '<ul class="tx-card">' + g.items.map(txRow).join("") + "</ul>" +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    function txRow(t) {
+      const c = catById(t.cat);
+      const tint = TINTS[c.tone] || TINTS.gray;
+      const sign = t.type === "expense" ? "−" : "+";
+      return (
+        '<li class="tx">' +
+          '<span class="tx-ic" style="background:' + tint.bg + ";color:" + tint.fg + '">' + icon(c.icon, "ic-22") + "</span>" +
+          '<div class="tx-main od-field od-fill">' +
+            '<span class="tx-name">' + esc(c.name) + "</span>" +
+            '<span class="tx-note od-truncate">' + esc(t.note || "无备注") + "</span>" +
+          "</div>" +
+          '<span class="tx-amt' + (t.type === "income" ? " in" : "") + '">' + sign + CUR + money(t.amount) + "</span>" +
+        "</li>"
+      );
+    }
+
+    /* ---------- add ---------- */
+    function renderSeg() {
+      $("#segExpense").setAttribute("aria-selected", String(ui.type === "expense"));
+      $("#segIncome").setAttribute("aria-selected", String(ui.type === "income"));
+      $("#amtCur").style.color = ui.type === "income" ? "var(--amber-ink)" : "";
+      $("#amtVal").style.color = ui.type === "income" ? "var(--amber-ink)" : "";
+    }
+
+    function renderCats() {
+      const list = CATS[ui.type];
+      $("#catGrid").innerHTML = list.map((c) => {
+        const tint = TINTS[c.tone] || TINTS.gray;
+        const pressed = ui.category === c.id;
+        return (
+          '<button class="cat" type="button" role="button" aria-pressed="' + pressed + '" data-cat="' + c.id + '" ' +
+            'style="--bg:' + tint.bg + ";--fg:" + tint.fg + ";--ring:" + tint.ring + '">' +
+            '<span class="cat-ic">' + icon(c.icon, "ic-22") + "</span>" +
+            '<span class="cat-name">' + esc(c.name) + "</span>" +
+          "</button>"
+        );
+      }).join("");
+    }
+
+    function renderAmount() {
+      const parts = ui.raw.split(".");
+      const intPart = Number(parts[0] || "0").toLocaleString("zh-CN");
+      $("#amtVal").textContent = parts.length > 1 ? intPart + "." + parts[1] : intPart;
+    }
+
+    function openAdd() {
+      ui.type = "expense";
+      ui.category = "food";
+      ui.raw = "0";
+      ui.date = TODAY;
+      ui.note = "";
+      $("#txDate").value = TODAY;
+      $("#txNote").value = "";
+      $("#amtError").hidden = true;
+      $("#amtError").textContent = "";
+      renderSeg();
+      renderCats();
+      renderAmount();
+      go("add");
+    }
+
+    function appendKey(k) {
+      if (k === ".") {
+        if (!ui.raw.includes(".")) ui.raw += ".";
+      } else {
+        if (ui.raw === "0") {
+          ui.raw = k;
+        } else {
+          const parts = ui.raw.split(".");
+          if (parts.length > 1 && parts[1].length >= 2) return;
+          if (parts.length === 1 && parts[0].length >= 7) return;
+          ui.raw += k;
+        }
+      }
+      renderAmount();
+    }
+
+    function backspace() {
+      if (ui.raw.length <= 1) ui.raw = "0";
+      else ui.raw = ui.raw.slice(0, -1);
+      if (ui.raw === "" || ui.raw === "-") ui.raw = "0";
+      renderAmount();
+    }
+
+    function saveTx() {
+      const amount = Number.parseFloat(ui.raw);
+      const err = $("#amtError");
+      if (!amount || amount <= 0) {
+        err.textContent = "请输入大于 0 的金额";
+        err.hidden = false;
+        return;
+      }
+      err.hidden = true;
+
+      const c = CATS[ui.type].find((x) => x.id === ui.category) || CATS[ui.type][0];
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      transactions.unshift({
+        id: "t" + Date.now(),
+        type: ui.type,
+        cat: c.id,
+        amount: Math.round(amount * 100) / 100,
+        note: ui.note.trim(),
+        date: ui.date || TODAY,
+        time: hh + ":" + mm
+      });
+
+      renderAll();
+      go(ui.addReturn);
+      toast("已记录 · " + c.name + " " + CUR + money(amount));
+    }
+
+    /* ---------- statistics ---------- */
+    const SLICE_ORDER = [
+      { key: "home",      name: "居家", cats: ["home"] },
+      { key: "shopping",  name: "购物", cats: ["shopping"] },
+      { key: "food",      name: "餐饮", cats: ["food"] },
+      { key: "packet",    name: "红包", cats: ["packet"] },
+      { key: "transport", name: "交通", cats: ["transport"] },
+      { key: "fun",       name: "娱乐", cats: ["fun"] },
+      { key: "repay",     name: "还款", cats: ["repay"] },
+      { key: "other",     name: "其他", cats: ["medical", "study", "other", "otherin"] }
+    ];
+    /* Fixed hue per entity, validated as a set (adjacent CVD ΔE ≥ 9.2). */
+    const SLICE_COLOR = ["#1baf7a", "#eb6834", "#2a78d6", "#e34948", "#eda100", "#e87ba4", "#008300", "#4a3aa7"];
+
+    function expenseSlices(pred) {
+      const totals = SLICE_ORDER.map(() => 0);
+      transactions.forEach((t) => {
+        if (t.type !== "expense" || !pred(t)) return;
+        const idx = SLICE_ORDER.findIndex((s) => s.cats.includes(t.cat));
+        totals[idx >= 0 ? idx : SLICE_ORDER.length - 1] += t.amount;
+      });
+      return totals;
+    }
+
+    function drawDonut(totals, emptyText) {
+      const total = totals.reduce((s, v) => s + v, 0);
+      const C = 2 * Math.PI * 62;
+      const GAP = 3;
+      let offset = 0;
+      let arcs = "";
+
+      totals.forEach((v, i) => {
+        if (v <= 0 || !total) return;
+        const len = (v / total) * C;
+        const dash = Math.max(len - GAP, 0.6);
+        arcs += '<circle cx="80" cy="80" r="62" fill="none" stroke="' + SLICE_COLOR[i] + '" stroke-width="26" ' +
+          'stroke-dasharray="' + dash.toFixed(2) + " " + (C - dash).toFixed(2) + '" ' +
+          'stroke-dashoffset="' + (-offset).toFixed(2) + '" transform="rotate(-90 80 80)"></circle>';
+        offset += len;
+      });
+      if (!total) {
+        arcs = '<circle cx="80" cy="80" r="62" fill="none" stroke="#EDF1ED" stroke-width="26"></circle>';
+      }
+      $("#donutSvg").innerHTML = arcs;
+      $("#donutTotal").textContent = CUR + moneyShort(total);
+
+      const rows = SLICE_ORDER
+        .map((s, i) => ({ name: s.name, value: totals[i], color: SLICE_COLOR[i] }))
+        .filter((r) => r.value > 0)
+        .sort((a, b) => b.value - a.value);
+
+      $("#donutLegend").innerHTML = rows.length
+        ? rows.map((r) =>
+            "<li>" +
+              '<span class="sw" style="background:' + r.color + '"></span>' +
+              '<span class="lg-name">' + esc(r.name) + "</span>" +
+              '<span class="lg-pct">' + ((r.value / total) * 100).toFixed(1) + "%</span>" +
+              '<span class="lg-amt">' + CUR + money(r.value) + "</span>" +
+            "</li>"
+          ).join("")
+        : '<li><span class="lg-name" style="color:var(--ink-3)">' + esc(emptyText) + "</span></li>";
+
+      return total;
+    }
+
+    function yearMonths(year) {
+      const out = [];
+      for (let i = 1; i <= 12; i++) out.push(year + "-" + String(i).padStart(2, "0"));
+      return out;
+    }
+
+    function lastSix(mk) {
+      const out = [];
+      for (let i = 5; i >= 0; i--) out.push(shiftMonth(mk, -i));
+      return out;
+    }
+
+    function renderStats() {
+      const isYear = ui.range === "year";
+      const mk = ui.statsMonth;
+
+      $$("#rangeSeg button").forEach((b) => {
+        b.setAttribute("aria-selected", String(b.dataset.range === ui.range));
+      });
+
+      if (isYear) {
+        $("#statMonthLabel").textContent = ui.statsYear + "年";
+        $("#monthPrev").hidden = true;
+        $("#monthNext").hidden = true;
+        $("#rangeSwitch").classList.add("static");
+        $("#donutSub").textContent = "全年";
+        $("#barTitle").textContent = "全年 12 个月收支";
+      } else {
+        const y = mk.slice(0, 4);
+        const m = Number(mk.slice(5, 7));
+        $("#statMonthLabel").textContent = y + "年" + m + "月";
+        $("#monthPrev").hidden = false;
+        $("#monthNext").hidden = false;
+        $("#monthPrev").disabled = mk <= MONTH_MIN;
+        $("#monthNext").disabled = mk >= MONTH;
+        $("#rangeSwitch").classList.remove("static");
+        $("#donutSub").textContent = m + "月";
+        $("#barTitle").textContent = "近 6 个月收支";
+      }
+
+      const totals = isYear
+        ? expenseSlices((t) => t.date.indexOf(ui.statsYear + "-") === 0)
+        : expenseSlices((t) => monthOf(t.date) === mk);
+
+      const total = drawDonut(totals, isYear ? "这一年还没有支出记录" : "这个月还没有支出记录");
+
+      const strip = $("#yearStats");
+      if (isYear && total > 0) {
+        const active = [];
+        transactions.forEach((t) => {
+          if (t.date.indexOf(ui.statsYear + "-") !== 0) return;
+          const m = monthOf(t.date);
+          if (active.indexOf(m) < 0) active.push(m);
+        });
+        active.sort();
+
+        let peakMonth = active[0];
+        let peakValue = -1;
+        active.forEach((m) => {
+          const v = sumOf("expense", m);
+          if (v > peakValue) { peakValue = v; peakMonth = m; }
+        });
+
+        $("#ysAvg").textContent = CUR + moneyShort(total / active.length);
+        $("#ysPeak").textContent = Number(peakMonth.slice(5, 7)) + "月 · " + CUR + moneyShort(peakValue);
+        strip.hidden = false;
+      } else {
+        strip.hidden = true;
+      }
+
+      const months = isYear ? yearMonths(ui.statsYear) : lastSix(mk);
+      renderBars(months, isYear);
+    }
+
+    function niceMax(v) {
+      if (v <= 1000) return 1000;
+      const step = 2000;
+      return Math.ceil(v / step) * step;
+    }
+
+    function barPath(x, y, w, h, r) {
+      if (h <= 0.4) return "";
+      const rr = Math.min(r, w / 2, h);
+      return (
+        "M" + x + "," + (y + h) +
+        " L" + x + "," + (y + rr) +
+        " Q" + x + "," + y + " " + (x + rr) + "," + y +
+        " L" + (x + w - rr) + "," + y +
+        " Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + rr) +
+        " L" + (x + w) + "," + (y + h) + " Z"
+      );
+    }
+
+    function renderBars(months, isYear) {
+      const data = months.map((m) => ({
+        mk: m,
+        label: Number(m.slice(5, 7)) + "月",
+        expense: sumOf("expense", m),
+        income: sumOf("income", m)
+      }));
+
+      const maxV = niceMax(Math.max(...data.map((d) => Math.max(d.expense, d.income)), 1));
+      const L = 32, R = 334, T = 14, B = 152;
+      const n = data.length;
+      const band = (R - L) / n;
+      const bw = n > 6 ? 8 : 13;
+      const gap = n > 6 ? 1.2 : 1.5;
+      const labelSize = n > 6 ? 8 : 9.5;
+      const scale = (v) => (v / maxV) * (B - T);
+
+      let grid = "";
+      [0, 0.5, 1].forEach((k) => {
+        const val = maxV * k;
+        const y = B - (B - T) * k;
+        const text = val === 0 ? "0" : val >= 10000 ? (val / 10000) + "万" : (val / 1000) + "千";
+        grid += '<line x1="' + L + '" y1="' + y + '" x2="' + R + '" y2="' + y + '" stroke="#E7ECE7" stroke-width="1"></line>';
+        grid += '<text x="' + (L - 6) + '" y="' + (y + 3.5) + '" text-anchor="end" font-size="9.5" fill="#6E7C76" font-variant-numeric="tabular-nums">' + text + "</text>";
+      });
+
+      let bars = "";
+      let hits = "";
+      data.forEach((d, i) => {
+        const center = L + band * (i + 0.5);
+        const x1 = center - bw - gap;
+        const x2 = center + gap;
+        const h1 = scale(d.expense);
+        const h2 = scale(d.income);
+        const y1 = B - h1;
+        const y2 = B - h2;
+
+        bars += '<path d="' + barPath(x1, y1, bw, h1, 4) + '" fill="#0C7E60"></path>';
+        bars += '<path d="' + barPath(x2, y2, bw, h2, 4) + '" fill="#D9651C"></path>';
+        bars += '<text x="' + center + '" y="' + (B + 20) + '" text-anchor="middle" font-size="' + labelSize + '" fill="#6E7C76">' + d.label + "</text>";
+
+        const top = Math.min(y1, y2);
+        const cxPct = (center / 340) * 100;
+        const cyPct = ((top - 6) / 200) * 100;
+        hits += '<rect class="bar-hit" x="' + (center - band / 2) + '" y="' + T + '" width="' + band + '" height="' + (B - T) + '" fill="transparent" ' +
+          'data-cx="' + cxPct.toFixed(2) + '" data-cy="' + cyPct.toFixed(2) + '" ' +
+          'data-label="' + esc(d.label + " · 支出 " + CUR + money(d.expense) + " · 收入 " + CUR + money(d.income)) + '" ' +
+          'tabindex="-1"></rect>';
+      });
+
+      $("#barSvg").innerHTML =
+        grid + bars +
+        '<line x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '" stroke="#D8E0DA" stroke-width="1"></line>' +
+        hits;
+
+      if (isYear) {
+        const yExp = data.reduce((s, d) => s + d.expense, 0);
+        const yInc = data.reduce((s, d) => s + d.income, 0);
+        $("#barSummary").innerHTML = "全年支出 <b>" + CUR + money(yExp) + "</b> · 收入 <b>" + CUR + money(yInc) + "</b> · 结余 <b>" + CUR + money(yInc - yExp) + "</b>";
+      } else {
+        const current = data[data.length - 1];
+        $("#barSummary").innerHTML = current.label + " 支出 <b>" + CUR + money(current.expense) + "</b> · 收入 <b>" + CUR + money(current.income) + "</b>";
+      }
+
+      $$(".bar-hit").forEach((el) => {
+        const show = () => {
+          const tip = $("#barTip");
+          tip.textContent = el.dataset.label;
+          tip.style.left = Math.min(Math.max(Number(el.dataset.cx), 20), 80) + "%";
+          tip.style.top = Number(el.dataset.cy) + "%";
+          tip.dataset.show = "true";
+        };
+        el.addEventListener("pointerenter", show);
+        el.addEventListener("click", show);
+      });
+
+      const wrap = $(".bar-wrap");
+      wrap.onpointerleave = () => { $("#barTip").dataset.show = "false"; };
+    }
+
+    /* ---------- profile ---------- */
+    function renderProfile() {
+      const used = sumOf("expense", MONTH);
+      const pct = BUDGET > 0 ? used / BUDGET : 0;
+      const over = used > BUDGET;
+
+      $("#budgetUsed").textContent = CUR + moneyShort(used);
+      $("#budgetTotal").textContent = "/ " + CUR + moneyShort(BUDGET);
+
+      const fill = $("#budgetFill");
+      fill.style.transform = "scaleX(" + Math.min(pct, 1).toFixed(4) + ")";
+      fill.classList.toggle("over", over);
+
+      const bar = $("#budgetBar");
+      bar.setAttribute("aria-valuenow", String(Math.round(pct * 100)));
+      bar.setAttribute("aria-valuetext", "已使用 " + Math.round(pct * 100) + "%");
+
+      $("#budgetMetaLeft").textContent = over
+        ? "已超支 " + CUR + moneyShort(used - BUDGET)
+        : "已用 " + Math.round(pct * 100) + "%";
+      $("#budgetMetaRight").textContent = over
+        ? "预算 " + CUR + moneyShort(BUDGET)
+        : "剩余 " + CUR + moneyShort(Math.max(BUDGET - used, 0));
+
+      const count = transactions.filter((t) => monthOf(t.date) === MONTH).length;
+      $("#ledgerName").textContent = ui.ledger;
+      $("#ledgerSub").textContent = "本月 " + count + " 笔 · " + LEDGERS.length + " 个账本";
+      $("#remindSub").textContent = ui.remind ? "每天 21:00 提醒我记一笔" : "提醒已关闭";
+      $("#remindRow").setAttribute("aria-checked", String(ui.remind));
+    }
+
+    function renderAll() {
+      renderHome();
+      renderStats();
+      renderProfile();
+    }
+
+    /* ---------- navigation ---------- */
+    function go(name) {
+      ui.screen = name;
+      $$(".screen").forEach((s) => { s.hidden = s.id !== "screen-" + name; });
+      $("#tabbar").hidden = name === "add";
+      $$(".tab").forEach((t) => {
+        const on = t.dataset.goto === name;
+        if (on) t.setAttribute("aria-current", "page");
+        else t.removeAttribute("aria-current");
+      });
+
+      const screen = $("#screen-" + name);
+      screen.classList.remove("anim");
+      void screen.offsetWidth;
+      screen.classList.add("anim");
+
+      if (name === "home") renderHome();
+      if (name === "stats") renderStats();
+      if (name === "profile") renderProfile();
+
+      const scroll = screen.querySelector(".screen-scroll");
+      if (scroll) scroll.scrollTop = 0;
+
+      try { screen.focus({ preventScroll: true }); } catch (e) { /* noop */ }
+    }
+
+    /* ---------- sheet ---------- */
+    let sheetOpen = false;
+    let sheetTrigger = null;
+
+    function openSheet() {
+      sheetTrigger = document.activeElement;
+      const monthCount = transactions.filter((t) => monthOf(t.date) === MONTH).length;
+      const list = $("#sheetList");
+      list.innerHTML = LEDGERS.map((l) =>
+        "<li><button type=\"button\" data-ledger=\"" + esc(l.name) + '">' +
+          '<span class="lrow-ic">' + icon("book", "ic-18") + "</span>" +
+          '<span class="od-field od-fill" style="--od-gap:2px">' +
+            '<span class="lrow-name">' + esc(l.name) + "</span>" +
+            '<span class="lrow-sub">' + (l.name === "日常账本" ? monthCount : l.count) + " 笔记录</span>" +
+          "</span>" +
+          (l.name === ui.ledger ? '<span class="check">' + icon("check", "ic-20") + "</span>" : "") +
+        "</button></li>"
+      ).join("");
+
+      $("#scrim").hidden = false;
+      $("#sheet").hidden = false;
+      sheetOpen = true;
+      requestAnimationFrame(() => {
+        $("#scrim").dataset.open = "true";
+        $("#sheet").dataset.open = "true";
+      });
+      const first = list.querySelector("button");
+      if (first) setTimeout(() => first.focus({ preventScroll: true }), 60);
+    }
+
+    function closeSheet(silent) {
+      if (!sheetOpen) return;
+      sheetOpen = false;
+      $("#scrim").dataset.open = "false";
+      $("#sheet").dataset.open = "false";
+      setTimeout(() => {
+        if (sheetOpen) return;
+        $("#scrim").hidden = true;
+        $("#sheet").hidden = true;
+      }, 300);
+      if (!silent && sheetTrigger && document.contains(sheetTrigger)) {
+        try { sheetTrigger.focus({ preventScroll: true }); } catch (e) { /* noop */ }
+      }
+      sheetTrigger = null;
+    }
+
+    /* ---------- events ---------- */
+    $("#fabAdd").addEventListener("click", () => {
+      ui.addReturn = "home";
+      openAdd();
+    });
+    $("#addBack").addEventListener("click", () => go(ui.addReturn));
+
+    document.addEventListener("click", (e) => {
+      const nav = e.target.closest("[data-goto]");
+      if (!nav) return;
+      const target = nav.dataset.goto;
+      if (target === "add") {
+        if (ui.screen !== "add") ui.addReturn = ui.screen;
+        openAdd();
+      } else {
+        go(target);
+      }
+    });
+
+    $("#segExpense").addEventListener("click", () => {
+      if (ui.type === "expense") return;
+      ui.type = "expense";
+      ui.category = "food";
+      renderSeg();
+      renderCats();
+    });
+    $("#segIncome").addEventListener("click", () => {
+      if (ui.type === "income") return;
+      ui.type = "income";
+      ui.category = "salary";
+      renderSeg();
+      renderCats();
+    });
+
+    $("#catGrid").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-cat]");
+      if (!btn) return;
+      ui.category = btn.dataset.cat;
+      $$("#catGrid .cat").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cat === ui.category)));
+      $("#amtError").hidden = true;
+    });
+
+    $("#keypad").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-key]");
+      if (!btn) return;
+      const k = btn.dataset.key;
+      if (k === "del") backspace();
+      else if (k === "clear") { ui.raw = "0"; renderAmount(); }
+      else if (k === "save") saveTx();
+      else appendKey(k);
+    });
+
+    $("#txDate").addEventListener("change", (e) => {
+      ui.date = e.target.value || TODAY;
+    });
+    $("#txNote").addEventListener("input", (e) => {
+      ui.note = e.target.value;
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (sheetOpen) { e.preventDefault(); closeSheet(); }
+        return;
+      }
+      if (ui.screen !== "add" || sheetOpen) return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        if (e.key === "Enter") { e.preventDefault(); saveTx(); }
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) { e.preventDefault(); appendKey(e.key); }
+      else if (e.key === ".") { e.preventDefault(); appendKey("."); }
+      else if (e.key === "Backspace") { e.preventDefault(); backspace(); }
+      else if (e.key === "Enter") { e.preventDefault(); saveTx(); }
+    });
+
+    $("#rangeSeg").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-range]");
+      if (!btn || btn.dataset.range === ui.range) return;
+      ui.range = btn.dataset.range;
+      $("#barTip").dataset.show = "false";
+      renderStats();
+      const sc = $("#screen-stats .screen-scroll");
+      if (sc) sc.scrollTop = 0;
+    });
+
+    $("#monthPrev").addEventListener("click", () => {
+      if (ui.statsMonth <= MONTH_MIN) return;
+      ui.statsMonth = shiftMonth(ui.statsMonth, -1);
+      renderStats();
+    });
+    $("#monthNext").addEventListener("click", () => {
+      if (ui.statsMonth >= MONTH) return;
+      ui.statsMonth = shiftMonth(ui.statsMonth, 1);
+      renderStats();
+    });
+
+    $("#ledgerRow").addEventListener("click", openSheet);
+    $("#sheetClose").addEventListener("click", () => closeSheet());
+    $("#scrim").addEventListener("click", () => closeSheet());
+    $("#sheetList").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-ledger]");
+      if (!btn) return;
+      ui.ledger = btn.dataset.ledger;
+      renderHome();
+      renderProfile();
+      closeSheet(true);
+      toast("已切换到「" + ui.ledger + "」");
+    });
+
+    $("#remindRow").addEventListener("click", () => {
+      ui.remind = !ui.remind;
+      renderProfile();
+      toast(ui.remind ? "已开启每日提醒" : "已关闭每日提醒");
+    });
+
+    $("#backupRow").addEventListener("click", () => {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      $("#backupSub").textContent = "上次备份：今天 " + hh + ":" + mm;
+      toast("数据已备份到本机");
+    });
+
+    $("#aboutRow").addEventListener("click", () => {
+      toast("记账本 v1.0 · 开发者 丘知叶");
+    });
+
+    /* ---------- boot ---------- */
+    renderAll();
+    go("home");
+  })();
+  </script>
+</body>
+</html>
