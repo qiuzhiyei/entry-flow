@@ -6,6 +6,7 @@ import '../models/ledger.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/data_backup_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -28,17 +29,6 @@ class ProfileScreen extends StatelessWidget {
     await provider.setReminderEnabled(enabled);
     if (!context.mounted) return;
     showAppToast(enabled ? '已开启每日提醒' : '已关闭每日提醒');
-  }
-
-  Future<void> _backup(BuildContext context) async {
-    try {
-      await context.read<LedgerProvider>().backupNow();
-      if (!context.mounted) return;
-      showAppToast('数据已备份到本机');
-    } catch (_) {
-      if (!context.mounted) return;
-      showAppToast('备份失败，请稍后重试');
-    }
   }
 
   @override
@@ -93,8 +83,8 @@ class ProfileScreen extends StatelessWidget {
                   _SettingRow(
                     icon: Icons.file_download_outlined,
                     title: '数据备份',
-                    subtitle: _backupLabel(ledger.lastBackupAt, now),
-                    onTap: () => _backup(context),
+                    subtitle: Dates.backupLabel(ledger.lastBackupAt, now: now),
+                    onTap: () => showDataBackupSheet(context),
                   ),
                   const _RowDivider(),
                   _SettingRow(
@@ -117,19 +107,6 @@ class ProfileScreen extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  static String _backupLabel(DateTime? lastBackup, DateTime now) {
-    if (lastBackup == null) return '还没有备份过';
-    final lastDay = Dates.dayOnly(lastBackup);
-    final today = Dates.dayOnly(now);
-    final difference = today.difference(lastDay).inDays;
-    final time =
-        '${lastBackup.hour.toString().padLeft(2, '0')}:'
-        '${lastBackup.minute.toString().padLeft(2, '0')}';
-    if (difference == 0) return '上次备份：今天 $time';
-    if (difference == 1) return '上次备份：昨天 $time';
-    return '上次备份：${lastBackup.month}月${lastBackup.day}日 $time';
   }
 }
 

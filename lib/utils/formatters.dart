@@ -76,6 +76,18 @@ abstract final class Dates {
     return '${cnDate(day)} · ${weekday(day)}';
   }
 
+  static String backupLabel(DateTime? lastBackup, {DateTime? now}) {
+    if (lastBackup == null) return '还没有备份过';
+    final current = now ?? DateTime.now();
+    final lastDay = dayOnly(lastBackup);
+    final today = dayOnly(current);
+    final difference = today.difference(lastDay).inDays;
+    final time = '${_two(lastBackup.hour)}:${_two(lastBackup.minute)}';
+    if (difference == 0) return '上次备份：今天 $time';
+    if (difference == 1) return '上次备份：昨天 $time';
+    return '上次备份：${lastBackup.month}月${lastBackup.day}日 $time';
+  }
+
   static String greeting(DateTime now) {
     final hour = now.hour;
     if (hour >= 5 && hour < 9) return '早上好';

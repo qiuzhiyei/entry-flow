@@ -80,4 +80,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('这个月还没有记录'), findsOneWidget);
   });
+
+  testWidgets('data backup sheet opens from the profile tab', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('我的').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('通用设置'), findsOneWidget);
+
+    await tester.tap(find.text('数据备份'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('数据备份与恢复'), findsOneWidget);
+    expect(find.text('导出备份文件'), findsOneWidget);
+    expect(find.text('从文件导入'), findsOneWidget);
+    expect(find.text('恢复本机备份'), findsOneWidget);
+  });
 }

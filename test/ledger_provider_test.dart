@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:entry_flow/models/record.dart';
@@ -171,5 +172,99 @@ void main() {
     expect(provider.lastBackupAt, isNotNull);
     expect(meta.get('reminder_enabled'), isFalse);
     expect(meta.get('backup_json'), isA<String>());
+  });
+
+  test('exported JSON restores records and settings with replace', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await provider.addRecord(
+      amountCents: 1000,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+    );
+    await provider.selectLedger('travel');
+    await provider.addRecord(
+      amountCents: 2500,
+      type: RecordType.expense,
+      categoryId: 'transport',
+      date: DateTime.now(),
+    );
+    await provider.setReminderEnabled(false);
+
+    final json = provider.buildBackupJson();
+    expect(json, contains('"schemaVersion": 1'));
+    expect(json, contains('"selectedLedger": "travel"'));
+
+    await provider.clearAll();
+    expect(provider.allRecords, isEmpty);
+
+    final summary = await provider.importBackup(json, replace: true);
+
+    expect(summary.imported, 2);
+    expect(summary.skipped, 0);
+    expect(summary.replaced, isTrue);
+    expect(provider.allRecords, hasLength(2));
+    expect(provider.selectedLedger.id, 'travel');
+    expect(provider.reminderEnabled, isFalse);
+    expect(provider.currentMonthExpenseCents, 2500);
+  });
+
+  test('merge import keeps existing records and dedupes by id', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await provider.addRecord(
+      amountCents: 1000,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+    );
+    final json = provider.buildBackupJson();
+    await provider.addRecord(
+      amountCents: 2500,
+      type: RecordType.expense,
+      categoryId: 'transport',
+      date: DateTime.now(),
+    );
+
+    final summary = await provider.importBackup(json, replace: false);
+
+    expect(summary.imported, 1);
+    expect(summary.replaced, isFalse);
+    expect(provider.allRecords, hasLength(2));
+    expect(provider.currentMonthExpenseCents, 3500);
+  });
+
+  test('old raw-list backups are still accepted', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final raw = jsonEncode(<Map<String, dynamic>>[
+      Record(
+        id: 'raw-1',
+        amountCents: 700,
+        type: RecordType.expense,
+        categoryId: 'study',
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+      ).toJson(),
+    ]);
+    final summary = await provider.importBackup(raw, replace: true);
+
+    expect(summary.imported, 1);
+    expect(provider.records.single.categoryId, 'study');
+  });
+
+  test('invalid backup files are rejected', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    expect(() => provider.parseBackup('{not-json'), throwsFormatException);
+    await expectLater(
+      provider.importBackup('{"records":[]}', replace: true),
+      throwsA(isA<FormatException>()),
+    );
   });
 }

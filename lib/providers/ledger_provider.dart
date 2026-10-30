@@ -45,6 +45,42 @@ class MonthlyTotal {
   final int incomeCents;
 }
 
+@immutable
+class BackupPreview {
+  const BackupPreview({
+    required this.records,
+    required this.skipped,
+    this.exportedAt,
+    this.ledgerId,
+    this.reminderEnabled,
+  });
+
+  final List<Record> records;
+  final int skipped;
+  final DateTime? exportedAt;
+  final String? ledgerId;
+  final bool? reminderEnabled;
+
+  int get dailyCount =>
+      records.where((record) => record.ledgerId == Ledgers.daily.id).length;
+
+  int get travelCount =>
+      records.where((record) => record.ledgerId == Ledgers.travel.id).length;
+}
+
+@immutable
+class ImportSummary {
+  const ImportSummary({
+    required this.imported,
+    required this.skipped,
+    required this.replaced,
+  });
+
+  final int imported;
+  final int skipped;
+  final bool replaced;
+}
+
 /// Single source of truth for the ledger UI. It listens to the Hive box, so
 /// writes coming from anywhere refresh every screen automatically.
 class LedgerProvider extends ChangeNotifier {
@@ -233,17 +269,154 @@ class LedgerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Writes a JSON snapshot of every record into the local meta box and
-  /// remembers the time. It is a real local backup, not just a fake toast.
-  Future<void> backupNow() async {
+  bool get hasLocalBackup => _metaBox.get(_backupDataKey) is String;
+
+  String? get localBackupJson {
+    final value = _metaBox.get(_backupDataKey);
+    return value is String ? value : null;
+  }
+
+  String get backupFileName {
     final now = DateTime.now();
-    final snapshot = jsonEncode(
-      _records.map((record) => record.toJson()).toList(growable: false),
-    );
-    await _metaBox.put(_backupDataKey, snapshot);
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '记账本备份-${now.year}${two(now.month)}${two(now.day)}'
+        '-${two(now.hour)}${two(now.minute)}.json';
+  }
+
+  String buildBackupJson() {
+    final payload = <String, dynamic>{
+      'app': '记账本',
+      'schemaVersion': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'selectedLedger': _selectedLedger.id,
+      'reminderEnabled': _reminderEnabled,
+      'records': _records
+          .map((record) => record.toJson())
+          .toList(growable: false),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  /// Stores the exported JSON as the local snapshot and remembers the time.
+  Future<void> markBackupExported(String json) async {
+    final now = DateTime.now();
+    await _metaBox.put(_backupDataKey, json);
     await _metaBox.put(_backupAtKey, now.toIso8601String());
     _lastBackupAt = now;
     notifyListeners();
+  }
+
+  /// Kept for callers that only need the local snapshot (tests, legacy code).
+  Future<void> backupNow() async {
+    await markBackupExported(buildBackupJson());
+  }
+
+  /// Accepts both the current envelope and the old raw-list snapshot.
+  BackupPreview parseBackup(String source) {
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(source);
+    } on FormatException {
+      throw const FormatException('备份文件不是有效的 JSON');
+    }
+
+    dynamic rawRecords;
+    DateTime? exportedAt;
+    String? ledgerId;
+    bool? reminderEnabled;
+
+    if (decoded is List) {
+      rawRecords = decoded;
+    } else if (decoded is Map) {
+      rawRecords = decoded['records'];
+      final ledger = decoded['selectedLedger'];
+      if (ledger is String) ledgerId = ledger;
+      final reminder = decoded['reminderEnabled'];
+      if (reminder is bool) reminderEnabled = reminder;
+      final exported = decoded['exportedAt'];
+      if (exported is String) exportedAt = DateTime.tryParse(exported);
+    } else {
+      throw const FormatException('备份文件格式不正确');
+    }
+
+    if (rawRecords is! List) {
+      throw const FormatException('备份文件缺少 records');
+    }
+
+    final byId = <String, Record>{};
+    var skipped = 0;
+    for (final item in rawRecords) {
+      if (item is! Map) {
+        skipped++;
+        continue;
+      }
+      try {
+        final record = Record.fromJson(Map<String, dynamic>.from(item));
+        if (record.id.isEmpty || record.amountCents <= 0) {
+          skipped++;
+          continue;
+        }
+        final normalized =
+            Ledgers.all.any((ledger) => ledger.id == record.ledgerId)
+            ? record
+            : record.copyWith(ledgerId: Ledgers.daily.id);
+        byId[normalized.id] = normalized;
+      } catch (_) {
+        skipped++;
+      }
+    }
+
+    return BackupPreview(
+      records: byId.values.toList(growable: false),
+      skipped: skipped,
+      exportedAt: exportedAt,
+      ledgerId: ledgerId,
+      reminderEnabled: reminderEnabled,
+    );
+  }
+
+  Future<ImportSummary> importBackup(
+    String source, {
+    required bool replace,
+  }) async {
+    final preview = parseBackup(source);
+    if (preview.records.isEmpty) {
+      throw const FormatException('备份中没有可导入的记录');
+    }
+
+    if (replace) await _box.clear();
+    final byId = <String, Record>{
+      for (final record in preview.records) record.id: record,
+    };
+    await _box.putAll(byId);
+
+    if (replace) {
+      final ledgerId = preview.ledgerId;
+      if (ledgerId != null) {
+        _selectedLedger = Ledgers.byId(ledgerId);
+        await _metaBox.put(_selectedLedgerKey, _selectedLedger.id);
+      }
+      final reminder = preview.reminderEnabled;
+      if (reminder != null) {
+        _reminderEnabled = reminder;
+        await _metaBox.put(_reminderKey, reminder);
+      }
+    }
+
+    _reload();
+    return ImportSummary(
+      imported: byId.length,
+      skipped: preview.skipped,
+      replaced: replace,
+    );
+  }
+
+  Future<ImportSummary> restoreLocalBackup() async {
+    final json = localBackupJson;
+    if (json == null) {
+      throw const FormatException('还没有本机备份');
+    }
+    return importBackup(json, replace: true);
   }
 
   @override
