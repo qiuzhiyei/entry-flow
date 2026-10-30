@@ -161,6 +161,8 @@ void main() {
     expect(provider.savedNote, '午饭');
     expect(find.text('支出'), findsNothing);
     expect(find.text('最近交易'), findsOneWidget);
+    expect(find.text('已记录：餐饮 300.00 元'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
 
     // The success toast schedules a 2s timer; advance fake time so it can
     // fire before the test tears down.
@@ -213,8 +215,7 @@ void main() {
 }
 
 class _RecordingLedgerProvider extends LedgerProvider {
-  _RecordingLedgerProvider(Box<Record> box, Box<dynamic> meta)
-    : super(box, meta);
+  _RecordingLedgerProvider(super.box, super.meta);
 
   int? savedAmountCents;
   String? savedNote;

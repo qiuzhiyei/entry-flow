@@ -156,7 +156,8 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      showAppToast('已记录 · ${category.name} ${Money.formatCents(cents)}');
+      final amount = Money.formatCents(cents).replaceFirst('¥', '');
+      showAppToast('已记录：${category.name} $amount 元', success: true);
     } catch (_) {
       if (!mounted) return;
       setState(() {
