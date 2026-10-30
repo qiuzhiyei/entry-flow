@@ -308,7 +308,7 @@ class LedgerProvider extends ChangeNotifier {
         final record = Record.fromJson(Map<String, dynamic>.from(item));
         if (record.id.isEmpty ||
             record.amountCents <= 0 ||
-            record.id.startsWith('demo-travel-')) {
+            record.id.startsWith('demo-')) {
           skipped++;
           continue;
         }

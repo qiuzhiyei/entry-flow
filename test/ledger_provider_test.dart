@@ -312,13 +312,21 @@ void main() {
     );
   });
 
-  test('legacy demo travel entries are ignored by backup import', () async {
+  test('demo entries are ignored by backup import', () async {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
-    final demo = Record(
-      id: 'demo-travel-0',
+    final demoDaily = Record(
+      id: 'demo-daily-0',
       amountCents: 100,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+      createdAt: DateTime.now(),
+    ).toJson();
+    final demoTravel = Record(
+      id: 'demo-travel-0',
+      amountCents: 200,
       type: RecordType.expense,
       categoryId: 'transport',
       date: DateTime.now(),
@@ -326,11 +334,11 @@ void main() {
       ledgerId: 'travel',
     ).toJson();
     final preview = provider.parseBackup(
-      jsonEncode(<Map<String, dynamic>>[demo]),
+      jsonEncode(<Map<String, dynamic>>[demoDaily, demoTravel]),
     );
 
     expect(preview.records, isEmpty);
-    expect(preview.skipped, 1);
+    expect(preview.skipped, 2);
   });
 
   test('invalid backup files are rejected', () async {

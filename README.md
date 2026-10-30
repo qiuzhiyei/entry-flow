@@ -2,6 +2,8 @@
 
 一个薄荷绿配色的**本地优先记账 App**，Flutter 原生实现。没有登录、没有广告、没有网络权限，账目只保存在本机。
 
+全新安装是空账本，不包含任何示例记录。旧版本遗留的 Demo 数据会在启动时清理，手记的真实记录会保留。
+
 ![首页](docs/screenshots/home.png)
 
 ## 下载
@@ -21,6 +23,8 @@ Android APK：[Releases](../../releases/latest)。
 - **安全清理**：两次确认 + 最终 3 秒倒计时
 
 ## 预览
+
+> 截图为演示数据，仅用于展示界面；全新安装不会带这些记录。
 
 | 统计 | 我的 | 数据备份 |
 | --- | --- | --- |
@@ -58,8 +62,8 @@ APK 输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
 - Flutter 3.47 / Dart 3.13
 - Android / iOS / Web
-- Android APK v1.1.0
-- 29 个测试通过，`flutter analyze` 无问题
+- Android APK v1.1.1
+- 28 个测试通过，`flutter analyze` 无问题
 
 ## License
 
