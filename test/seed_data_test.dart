@@ -32,14 +32,14 @@ void main() {
 
   test('demo data is seeded once and never returns after clearing', () async {
     await SeedData.seedIfNeeded(records, meta);
-    expect(records, hasLength(116));
+    expect(records, hasLength(84));
     expect(
       records.values.where((record) => record.ledgerId == 'daily').length,
       84,
     );
     expect(
-      records.values.where((record) => record.ledgerId == 'travel').length,
-      32,
+      records.values.where((record) => record.ledgerId == 'travel'),
+      isEmpty,
     );
     expect(meta.get('demo_seeded'), isTrue);
 
@@ -80,6 +80,45 @@ void main() {
       records.values.where((record) => record.id == 'demo-legacy'),
       hasLength(1),
     );
+  });
+
+  test('legacy travel records are removed or merged into daily', () async {
+    await records.put(
+      0,
+      Record(
+        id: 'demo-travel-0',
+        amountCents: 100,
+        type: RecordType.expense,
+        categoryId: 'transport',
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+        ledgerId: 'travel',
+      ),
+    );
+    await records.put(
+      'user-travel',
+      Record(
+        id: 'user-travel',
+        amountCents: 200,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+        ledgerId: 'travel',
+      ),
+    );
+
+    await SeedData.seedIfNeeded(records, meta);
+
+    expect(
+      records.values.where((record) => record.id == 'demo-travel-0'),
+      isEmpty,
+    );
+    final migrated = records.values.firstWhere(
+      (record) => record.id == 'user-travel',
+    );
+    expect(migrated.ledgerId, 'daily');
+    expect(meta.get('single_ledger_migrated'), isTrue);
   });
 
   test('an existing ledger is never polluted with demo data', () async {

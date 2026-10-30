@@ -51,19 +51,11 @@ class BackupPreview {
     required this.records,
     required this.skipped,
     this.exportedAt,
-    this.ledgerId,
   });
 
   final List<Record> records;
   final int skipped;
   final DateTime? exportedAt;
-  final String? ledgerId;
-
-  int get dailyCount =>
-      records.where((record) => record.ledgerId == Ledgers.daily.id).length;
-
-  int get travelCount =>
-      records.where((record) => record.ledgerId == Ledgers.travel.id).length;
 }
 
 @immutable
@@ -85,12 +77,10 @@ class LedgerProvider extends ChangeNotifier {
   LedgerProvider(this._box, this._metaBox) {
     _boxListenable = _box.listenable();
     _boxListenable.addListener(_handleStorageChanged);
-    _selectedLedger = Ledgers.byId(_metaBox.get(_selectedLedgerKey) as String?);
     _lastBackupAt = _parseDate(_metaBox.get(_backupAtKey));
     _reload();
   }
 
-  static const String _selectedLedgerKey = 'selected_ledger';
   static const String _backupAtKey = 'last_backup_at';
   static const String _backupDataKey = 'backup_json';
 
@@ -101,7 +91,7 @@ class LedgerProvider extends ChangeNotifier {
   late final Listenable _boxListenable;
 
   List<Record> _records = const <Record>[];
-  Ledger _selectedLedger = Ledgers.daily;
+  final Ledger _selectedLedger = Ledgers.daily;
   DateTime? _lastBackupAt;
   bool _disposed = false;
   int _sequence = 0;
@@ -247,14 +237,6 @@ class LedgerProvider extends ChangeNotifier {
         .length;
   }
 
-  Future<void> selectLedger(String ledgerId) async {
-    final next = Ledgers.byId(ledgerId);
-    if (next.id == _selectedLedger.id) return;
-    _selectedLedger = next;
-    await _metaBox.put(_selectedLedgerKey, next.id);
-    notifyListeners();
-  }
-
   String get backupFileName {
     final now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -300,14 +282,11 @@ class LedgerProvider extends ChangeNotifier {
 
     dynamic rawRecords;
     DateTime? exportedAt;
-    String? ledgerId;
 
     if (decoded is List) {
       rawRecords = decoded;
     } else if (decoded is Map) {
       rawRecords = decoded['records'];
-      final ledger = decoded['selectedLedger'];
-      if (ledger is String) ledgerId = ledger;
       final exported = decoded['exportedAt'];
       if (exported is String) exportedAt = DateTime.tryParse(exported);
     } else {
@@ -327,12 +306,13 @@ class LedgerProvider extends ChangeNotifier {
       }
       try {
         final record = Record.fromJson(Map<String, dynamic>.from(item));
-        if (record.id.isEmpty || record.amountCents <= 0) {
+        if (record.id.isEmpty ||
+            record.amountCents <= 0 ||
+            record.id.startsWith('demo-travel-')) {
           skipped++;
           continue;
         }
-        final normalized =
-            Ledgers.all.any((ledger) => ledger.id == record.ledgerId)
+        final normalized = record.ledgerId == Ledgers.daily.id
             ? record
             : record.copyWith(ledgerId: Ledgers.daily.id);
         byId[normalized.id] = normalized;
@@ -345,7 +325,6 @@ class LedgerProvider extends ChangeNotifier {
       records: byId.values.toList(growable: false),
       skipped: skipped,
       exportedAt: exportedAt,
-      ledgerId: ledgerId,
     );
   }
 
@@ -377,14 +356,6 @@ class LedgerProvider extends ChangeNotifier {
           record;
     }
     await _box.putAll(targets);
-
-    if (replace) {
-      final ledgerId = preview.ledgerId;
-      if (ledgerId != null) {
-        _selectedLedger = Ledgers.byId(ledgerId);
-        await _metaBox.put(_selectedLedgerKey, _selectedLedger.id);
-      }
-    }
 
     _reload();
     return ImportSummary(

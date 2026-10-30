@@ -9,15 +9,16 @@ const bool kSeedDemoData = true;
 abstract final class SeedData {
   static const String _seededKey = 'demo_seeded';
   static const String _versionKey = 'demo_version';
+  static const String _singleLedgerKey = 'single_ledger_migrated';
   static const int _version = 2;
 
   static const String _dailyLedger = 'daily';
-  static const String _travelLedger = 'travel';
 
   static Future<void> seedIfNeeded(
     Box<Record> box,
     Box<dynamic> metaBox,
   ) async {
+    await _migrateToSingleLedger(box, metaBox);
     if (!kSeedDemoData) return;
 
     final seeded = metaBox.get(_seededKey) == true;
@@ -42,9 +43,8 @@ abstract final class SeedData {
       num amount,
       String note,
       int day,
-      String time, {
-      String ledgerId = _dailyLedger,
-    }) {
+      String time,
+    ) {
       final parts = time.split(':');
       final date = _dateFor(
         now,
@@ -62,7 +62,7 @@ abstract final class SeedData {
           date: date,
           note: note,
           createdAt: date,
-          ledgerId: ledgerId,
+          ledgerId: _dailyLedger,
         ),
       );
     }
@@ -120,7 +120,6 @@ abstract final class SeedData {
 
     // ----- earlier months, so the year chart is complete -----
     records.addAll(_buildHistoricalRecords(now));
-    records.addAll(_buildTravelRecords(now));
 
     await box.putAll(<String, Record>{
       for (final record in records) record.id: record,
@@ -130,8 +129,7 @@ abstract final class SeedData {
   }
 
   /// Older demo installs already have the October/September/... records.
-  /// Version 2 adds the earlier months and the travel ledger without touching
-  /// the user's own records.
+  /// Version 2 adds the earlier months without touching the user's own records.
   static Future<void> _upgradeDemoData(
     Box<Record> box,
     Box<dynamic> metaBox,
@@ -145,10 +143,9 @@ abstract final class SeedData {
     if (hasDemoRecords) {
       final now = DateTime.now();
       final existingIds = box.values.map((record) => record.id).toSet();
-      final additions = <Record>[
-        ..._buildHistoricalRecords(now),
-        ..._buildTravelRecords(now),
-      ].where((record) => !existingIds.contains(record.id)).toList();
+      final additions = _buildHistoricalRecords(now)
+          .where((record) => !existingIds.contains(record.id))
+          .toList();
       if (additions.isNotEmpty) {
         await box.putAll(<String, Record>{
           for (final record in additions) record.id: record,
@@ -157,6 +154,29 @@ abstract final class SeedData {
     }
 
     await metaBox.put(_versionKey, _version);
+  }
+
+  /// The app has a single daily ledger. Existing demo-travel records are
+  /// removed; any real travel-created records are kept and moved to daily.
+  static Future<void> _migrateToSingleLedger(
+    Box<Record> box,
+    Box<dynamic> metaBox,
+  ) async {
+    if (metaBox.get(_singleLedgerKey) == true) return;
+
+    final entries = box.toMap().entries.toList(growable: false);
+    for (final entry in entries) {
+      final record = entry.value;
+      if (record.ledgerId == _dailyLedger) continue;
+      if (record.id.startsWith('demo-travel-')) {
+        await box.delete(entry.key);
+      } else {
+        await box.put(entry.key, record.copyWith(ledgerId: _dailyLedger));
+      }
+    }
+
+    await metaBox.put(_singleLedgerKey, true);
+    await metaBox.put('selected_ledger', _dailyLedger);
   }
 
   static List<Record> _buildHistoricalRecords(DateTime now) {
@@ -246,54 +266,6 @@ abstract final class SeedData {
     add(9, 'income', 'bonus', 8000, '年终奖', 20, '10:00');
 
     return records;
-  }
-
-  static List<Record> _buildTravelRecords(DateTime now) {
-    const notes = <String>[
-      '高铁票',
-      '民宿住宿',
-      '景点门票',
-      '旅行餐饮',
-      '打车',
-      '纪念品',
-      '咖啡',
-      '租车',
-    ];
-    const categories = <String>[
-      'transport',
-      'home',
-      'fun',
-      'food',
-      'transport',
-      'shopping',
-      'food',
-      'transport',
-    ];
-
-    return <Record>[
-      for (var i = 0; i < 32; i++)
-        () {
-          final monthsAgo = i < 4 ? 0 : 1 + ((i - 4) % 6);
-          final day = 2 + ((i * 5) % 24);
-          final date = _dateFor(
-            now,
-            monthsAgo,
-            day,
-            9 + (i % 10),
-            (i * 7) % 60,
-          );
-          return Record(
-            id: 'demo-travel-$i',
-            amountCents: (48 + ((i * 73) % 520)) * 100,
-            type: RecordType.expense,
-            categoryId: categories[i % categories.length],
-            date: date,
-            note: notes[i % notes.length],
-            createdAt: date,
-            ledgerId: _travelLedger,
-          );
-        }(),
-    ];
   }
 
   static DateTime _dateFor(

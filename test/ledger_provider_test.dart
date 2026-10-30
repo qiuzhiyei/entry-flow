@@ -134,7 +134,7 @@ void main() {
     );
   });
 
-  test('switching ledgers scopes totals and persists the selection', () async {
+  test('new records always belong to the single daily ledger', () async {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
@@ -144,21 +144,10 @@ void main() {
       categoryId: 'food',
       date: DateTime.now(),
     );
-    await provider.selectLedger('travel');
-    await provider.addRecord(
-      amountCents: 2500,
-      type: RecordType.expense,
-      categoryId: 'transport',
-      date: DateTime.now(),
-    );
 
-    expect(provider.currentMonthExpenseCents, 2500);
-    expect(provider.currentMonthCountForLedger('daily'), 1);
-    expect(provider.totalCountForLedger('travel'), 1);
-
-    final restored = LedgerProvider(box, meta);
-    addTearDown(restored.dispose);
-    expect(restored.selectedLedger.id, 'travel');
+    expect(provider.selectedLedger.id, 'daily');
+    expect(provider.allRecords.single.ledgerId, 'daily');
+    expect(provider.currentMonthExpenseCents, 1000);
   });
 
   test('merge import updates a legacy integer-keyed record in place', () async {
@@ -229,7 +218,6 @@ void main() {
       categoryId: 'food',
       date: DateTime.now(),
     );
-    await provider.selectLedger('travel');
     await provider.addRecord(
       amountCents: 2500,
       type: RecordType.expense,
@@ -239,7 +227,7 @@ void main() {
 
     final json = provider.buildBackupJson();
     expect(json, contains('"schemaVersion": 1'));
-    expect(json, contains('"selectedLedger": "travel"'));
+    expect(json, contains('"selectedLedger": "daily"'));
 
     await provider.clearAll();
     expect(provider.allRecords, isEmpty);
@@ -250,8 +238,8 @@ void main() {
     expect(summary.skipped, 0);
     expect(summary.replaced, isTrue);
     expect(provider.allRecords, hasLength(2));
-    expect(provider.selectedLedger.id, 'travel');
-    expect(provider.currentMonthExpenseCents, 2500);
+    expect(provider.selectedLedger.id, 'daily');
+    expect(provider.currentMonthExpenseCents, 3500);
   });
 
   test('merge import keeps existing records and dedupes by id', () async {
@@ -322,6 +310,27 @@ void main() {
       provider.importBackup(json, replace: true),
       throwsA(isA<FormatException>()),
     );
+  });
+
+  test('legacy demo travel entries are ignored by backup import', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final demo = Record(
+      id: 'demo-travel-0',
+      amountCents: 100,
+      type: RecordType.expense,
+      categoryId: 'transport',
+      date: DateTime.now(),
+      createdAt: DateTime.now(),
+      ledgerId: 'travel',
+    ).toJson();
+    final preview = provider.parseBackup(
+      jsonEncode(<Map<String, dynamic>>[demo]),
+    );
+
+    expect(preview.records, isEmpty);
+    expect(preview.skipped, 1);
   });
 
   test('invalid backup files are rejected', () async {

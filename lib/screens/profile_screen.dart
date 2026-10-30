@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../app_keys.dart';
-import '../models/ledger.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -12,25 +10,6 @@ import '../widgets/data_backup_sheet.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _switchLedger(BuildContext context) async {
-    final provider = context.read<LedgerProvider>();
-    final current = provider.selectedLedger;
-    final next = Ledgers.all.firstWhere(
-      (ledger) => ledger.id != current.id,
-      orElse: () => current,
-    );
-    if (next.id == current.id) return;
-
-    try {
-      await provider.selectLedger(next.id);
-      if (!context.mounted) return;
-      showAppToast('已切换到「${next.name}」');
-    } catch (_) {
-      if (!context.mounted) return;
-      showAppToast('账本切换失败，请重试');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
@@ -39,10 +18,6 @@ class ProfileScreen extends StatelessWidget {
     final budget = LedgerProvider.budgetCents;
     final progress = (used / budget).clamp(0.0, 1.0).toDouble();
     final over = used > budget;
-    final otherLedger = Ledgers.all.firstWhere(
-      (item) => item.id != ledger.selectedLedger.id,
-      orElse: () => ledger.selectedLedger,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,18 +38,6 @@ class ProfileScreen extends StatelessWidget {
                 progress: progress,
                 over: over,
                 monthLabel: Dates.monthShort(now),
-              ),
-              _SectionHead('账本'),
-              _ListCard(
-                children: <Widget>[
-                  _LedgerRow(
-                    ledger: ledger.selectedLedger,
-                    subtitle: otherLedger.id == ledger.selectedLedger.id
-                        ? '当前账本'
-                        : '点按切换到「${otherLedger.name}」',
-                    onTap: () => _switchLedger(context),
-                  ),
-                ],
               ),
               _SectionHead('通用设置'),
               _ListCard(
@@ -380,64 +343,6 @@ class _RowIcon extends StatelessWidget {
         icon,
         size: 18,
         color: danger ? AppColors.danger : AppColors.mintInk,
-      ),
-    );
-  }
-}
-
-class _LedgerRow extends StatelessWidget {
-  const _LedgerRow({
-    required this.ledger,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final Ledger ledger;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 68,
-        child: Row(
-          children: <Widget>[
-            const _RowIcon(Icons.menu_book_outlined),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    ledger.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.3,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.swap_horiz_rounded,
-              size: 20,
-              color: AppColors.ink3,
-            ),
-          ],
-        ),
       ),
     );
   }

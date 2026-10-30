@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _HomeHeader(now: now, ledgerName: ledger.selectedLedger.name),
+        _HomeHeader(now: now),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -48,10 +48,9 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.now, required this.ledgerName});
+  const _HomeHeader({required this.now});
 
   final DateTime now;
-  final String ledgerName;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +60,7 @@ class _HomeHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '$ledgerName · ${Dates.cnDate(now)} ${Dates.weekday(now)}',
+            '${Dates.cnDate(now)} ${Dates.weekday(now)}',
             style: AppText.eyebrow,
           ),
           const SizedBox(height: 3),

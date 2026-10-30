@@ -216,8 +216,7 @@ class _DataBackupSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                '共 ${preview.records.length} 条记录'
-                '（日常 ${preview.dailyCount} · 旅行 ${preview.travelCount}）',
+                '共 ${preview.records.length} 条记录',
                 style: const TextStyle(
                   fontSize: 13.5,
                   height: 1.5,
