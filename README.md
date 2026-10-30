@@ -1,130 +1,176 @@
-# 记账本 · entry_flow
+# 记账本 · entry-flow
 
-基于 `design_ref/薄荷绿记账本-App-原型` 重写的 **Flutter 原生本地记账本**。界面全部由 Flutter Widget 构建，没有 HTML/CSS 套壳；账目通过 Hive 持久化在本机。
+一个薄荷绿配色的**本地优先记账 App**，使用 Flutter 原生 Widget 构建。没有登录、没有云同步、没有网络权限，账目只保存在你自己的设备上。
 
-## 技术栈
+![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
+![Platform](https://img.shields.io/badge/Android%20%7C%20iOS%20%7C%20Web-0C7E60)
+![Local-first](https://img.shields.io/badge/Local--first-no%20account%20%C2%B7%20no%20network-0C7E60)
 
-| 依赖 | 用途 |
-| --- | --- |
-| `provider` 6.1 | 账本状态管理、界面实时刷新 |
-| `hive` / `hive_flutter` 2.2 / 1.1 | 本地键值数据库 |
-| `intl` 0.20 | 金额千分位格式化 |
-| `flutter_localizations` | 中文日期选择器、Material 本地化 |
-| `file_picker` 13.3 | 保存和选择本地 JSON 备份文件 |
+![首页](docs/screenshots/home.png)
 
-## 已实现
+## 为什么是本地优先
 
-- **主框架**：底部导航（首页 / 统计 / 记一笔 / 我的）、桌面端居中手机画布。四个入口统一 23px 线性图标与标签基线，「记一笔」不再使用突出的薄荷绿方块（按真机反馈调整）。
-- **首页**：日期问候、本月支出/收入/结余卡片、环比标签、按日分组的交易列表、空状态；已按新版原型移除悬浮「记一笔」按钮。
-- **记一笔**：支出/收入切换、分类选择、自定义数字键盘、日期选择、备注、金额校验；备注聚焦时顶部「保存」仍可用，点击金额区可收起系统键盘并恢复数字键盘；金额输入改为局部刷新，避免整页重建。保存后写入日常账本并返回刷新。
-- **统计**：按月/按年切换、月份切换（限制在当前年份）、环形图与分类图例、近 6 个月/全年 12 个月柱状图、点击柱状图的深色提示浮层、年度月均支出与最高月。
-- **我的**：本月预算进度、数据备份、清理数据（两次确认 + 最终 3 秒倒计时）。开发者信息只保留在顶部用户卡。
-- **数据备份**：通过系统保存窗口把包含全部账目和设置的 JSON 导出到本地目录；从本地文件导入时可选合并（按 ID 去重）或覆盖。
-- **单一账本**：所有记录都属于日常账本，不再有账本切换入口。旧版 Demo 旅行记录在启动时清理，真实的旧旅行记录会合并进日常账本，日常账本原有数据不变。
-- **本地数据**：金额以「分」存储避免浮点误差；日期用本地 ISO-8601 字符串；手写 Hive TypeAdapter 向后兼容没有 `ledgerId` 的旧记录。种子记录按 `Record.id` 作为 Hive key，旧版整数 key 在合并/删除时会按 id 兜底，避免重复记账或删不掉。
-- **测试**：Provider 聚合、月度对比、单账本口径、备份时间/快照持久化、备份 JSON 导出/合并/覆盖恢复、旧格式兼容、旧版整数键升级与合并、无键删除、非法日期过滤、旅行 Demo 清理/真实旅行归并、Hive 关闭重开、示例数据迁移、首页实时刷新与持平标签、柱状图点击提示、备份弹层 UI、备注聚焦时保存、点金额区恢复键盘、年度月均口径、清理数据二次确认/3 秒倒计时，共 29 个测试。
+- **不登录**：打开即用，不需要手机号、邮箱或账号
+- **不联网**：Android 包未申请 `INTERNET` 权限
+- **不上传**：没有云同步、统计 SDK、广告 SDK
+- **可带走**：全部记录可导出为 JSON，换设备时可再导入
+- **可删除**：清理数据需要两次确认，最终按钮还有 3 秒保护期
+
+## 功能
+
+- **首页**：本月支出 / 收入 / 结余、环比标签、按日分组的交易列表
+- **记一笔**：支出/收入切换、分类、自定义数字键盘、日期、备注、金额校验
+- **输入体验**：备注聚焦时顶部仍可保存；点金额区可收起系统键盘并恢复数字键盘
+- **统计**：按月/按年、环形分类图、近 6 个月/全年柱状图、点击柱状图查看提示
+- **单一账本**：所有记录都在日常账本中，没有多余的账本切换入口
+- **数据备份**：将全部账目导出为本地 JSON，或从本地 JSON 合并/覆盖导入
+- **清理数据**：两轮确认 + 最终 3 秒倒计时，倒计时结束前按钮灰色禁用
+- **本地存储**：Hive 持久化，金额以「分」存储，日期使用本地 ISO-8601
+- **应用图标**：深薄荷底 + 白色账本 + 暖金硬币，包含 Android 自适应图标
 
 ## 预览
 
-以下为 Flutter 390×844 实际渲染（Web 目标；真机由系统安全区补充状态栏/底部手势条）。
+以下为 Flutter 390×844 Web 渲染；真机会由系统安全区补充状态栏和底部手势条。
 
 | 首页 | 统计（按月） | 我的 |
 | --- | --- | --- |
 | ![首页](docs/screenshots/home.png) | ![统计](docs/screenshots/stats.png) | ![我的](docs/screenshots/profile.png) |
 
-| 统计（全年 + 柱状图提示） | 账本管理弹层 | 记一笔 |
+| 统计（全年 + 柱状图提示） | 数据备份 | 日期选择 |
 | --- | --- | --- |
-| ![统计柱状图](docs/screenshots/stats-bars.png) | ![账本管理](docs/screenshots/ledger-sheet.png) | ![记一笔](docs/screenshots/add-record.png) |
-
-日期选择：[日期选择器截图](docs/screenshots/date-picker.png)。
-
-真机底部导航（裁切）：[查看截图](docs/screenshots/phone-nav.png)。
-
-数据备份弹层：[查看截图](docs/screenshots/backup-sheet.png)。
+| ![统计柱状图](docs/screenshots/stats-bars.png) | ![数据备份](docs/screenshots/backup-sheet.png) | ![日期选择](docs/screenshots/date-picker.png) |
 
 ## 应用图标
 
-![应用图标](assets/icon/app_icon_rounded_1024.png)
+<p align="center">
+  <img src="assets/icon/app_icon_rounded_1024.png" width="220" alt="记账本应用图标" />
+</p>
 
-深薄荷渐变底、白色账本、深绿书签和暖金硬币，小尺寸仍保留「账本 + 金币」的识别度。源图在 `assets/icon/`，生成脚本是 `tool/generate_app_icon.py`；已同步生成 Android 自适应图标、iOS AppIcon、Web 图标和 Windows ICO。
+图标源图在 [`assets/icon/`](assets/icon/)，可复现脚本为 [`tool/generate_app_icon.py`](tool/generate_app_icon.py)。已生成 Android 自适应图标、Android 传统 mipmap、iOS AppIcon、Web 图标和 Windows ICO。
 
-## 目录
+## 技术栈
+
+| 依赖 | 用途 |
+| --- | --- |
+| Flutter 3.47 / Dart 3.13 | 原生 UI |
+| `provider` 6.1 | 状态管理与界面刷新 |
+| `hive` / `hive_flutter` 2.2 / 1.1 | 本地键值数据库 |
+| `intl` 0.20 | 金额格式化 |
+| `flutter_localizations` | 中文日期与 Material 本地化 |
+| `file_picker` 13.3 | 本地 JSON 备份的保存和选择 |
+
+## 项目结构
 
 ```text
 lib/
-├─ main.dart                    # Hive 初始化 + Provider 注入
-├─ app.dart                     # MaterialApp / 主 Shell / 路由 / 滚动行为
-├─ app_keys.dart                # 全局紧凑 toast（跨路由/弹层显示）
+├─ main.dart                     # Hive 初始化 + Provider 注入
+├─ app.dart                      # MaterialApp / 主 Shell / 路由
+├─ app_keys.dart                 # 全局 toast
 ├─ models/
-│  ├─ record.dart               # Record 模型 + 手写 Hive TypeAdapter + JSON
-│  ├─ category.dart             # 分类定义与配色、图标
-│  └─ ledger.dart               # 单一日常账本
-├─ providers/ledger_provider.dart  # 账本、设置、备份、统计聚合
+│  ├─ record.dart                # Record + Hive TypeAdapter + JSON
+│  ├─ category.dart              # 分类定义与配色
+│  └─ ledger.dart                # 单一日常账本
+├─ providers/ledger_provider.dart # 记录聚合、月度统计、备份导入导出
 ├─ services/
-│  ├─ hive_service.dart         # records + meta Box 初始化
-│  └─ seed_data.dart            # 84 条日常示例数据 + 版本迁移
+│  ├─ hive_service.dart          # records + meta Box
+│  └─ seed_data.dart             # 示例数据 + 单账本迁移
 ├─ screens/
 │  ├─ home_screen.dart
 │  ├─ add_record_screen.dart
 │  ├─ stats_screen.dart
 │  ├─ profile_screen.dart
 │  └─ startup_failure_screen.dart
-├─ theme/app_theme.dart         # 原型设计令牌（颜色/字号/阴影/圆角）
-├─ utils/formatters.dart        # 金额、日期、问候语
+├─ theme/app_theme.dart
+├─ utils/formatters.dart
 └─ widgets/
-   ├─ app_frame.dart            # 宽屏居中手机画布
+   ├─ app_frame.dart
    ├─ bottom_nav.dart
-   └─ finance_charts.dart       # 环形图 + 月度柱状图（CustomPainter）
+   ├─ finance_charts.dart        # DonutChart + MonthlyBarChart
+   ├─ data_backup_sheet.dart
+   └─ clear_data_flow.dart
 ```
 
 ## 运行
 
+需要 Flutter 3.47+、Dart 3.13+。Android 构建需要 Android SDK 和 JDK 17+。
+
 ```bash
-# 拉取依赖
 flutter pub get
-
-# 运行（选择已连接的设备/模拟器）
 flutter run
+```
 
-# 其他目标
+Web：
+
+```bash
 flutter run -d edge
 ```
 
-本机 Flutter 未加入 `PATH` 时：
+## 下载
 
-```powershell
-& 'D:\Software\Develop\Flutter\bin\flutter.bat' pub get
-& 'D:\Software\Develop\Flutter\bin\flutter.bat' run
-```
+正式签名的 APK 会放在 [Releases](../../releases)。目前仓库还没有上传签名包体；可以先按下方步骤从源码构建。
 
-### Android APK
+Android 安装时需要允许浏览器或文件管理器「安装未知应用」。这是 GitHub 侧载，不经过应用商店。
 
-本机 Android SDK 在 `D:\Software\Develop\AndroidSDK`，使用 Android Studio 自带 JDK 21：
+## 构建 Android APK
 
-```powershell
-$env:JAVA_HOME='D:\Software\Develop\AndroidStudio\jbr'
-$env:ANDROID_HOME='D:\Software\Develop\AndroidSDK'
+```bash
 flutter build apk --release
-
-adb install -r build\app\outputs\flutter-apk\app-release.apk
 ```
 
-已验证可编译出 `app-release.apk` 并通过 adb 安装到小米手机（应用名「记账本」）。项目在 `D:`，Pub 缓存在 `C:`，`file_picker` 的 Kotlin 插件增量缓存会因跨盘路径失败，因此 `android/gradle.properties` 关闭了 `kotlin.incremental`。Windows 桌面端构建含插件的项目需要系统开启「开发者模式」（符号链接支持）。
+输出：
 
-## 本地数据说明
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```
 
-- 数据保存在 Hive 的 `records` / `meta` Box 中，路径位于应用文档目录下的 `mint_ledger/`。
-- 示例数据共 84 条日常账本记录（2026 年 1–10 月），便于直接查看完整统计图。
-- 示例数据是否已灌入记录在 `meta` 的 `demo_seeded` / `demo_version` 中；清空记录后不会再次注入。旧版本安装升级时只补缺失的历史月份，不会覆盖已有真实记录。
-- 要使用空账本：将 `lib/services/seed_data.dart` 顶部 `kSeedDemoData` 改为 `false`，并在系统设置里清除「记账本」的应用数据后重装。
-- 数据备份支持两种操作：
-  - **导出备份**：生成全部记录的 JSON，通过系统保存窗口选择本地目录保存；
-  - **导入备份**：选择本地 `.json` 备份，确认后按「合并」或「覆盖」导入。
-- 导出文件名形如 `记账本备份-20261030-0940.json`；导入同时兼容旧版本保存的纯记录数组快照，旧的旅行 Demo 记录会被忽略。
-- 「清理数据」会删除全部记录，但不会删除已经导出到本地的备份文件；入口需要两次确认，第二轮最终按钮要等 3 秒倒计时结束才可点击。
+安装到已连接的 Android 设备：
 
-## 下一轮
+```bash
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+```
 
-1. 交易详情：点击交易查看、编辑、删除。
-2. 统计支持跨年月份/年份切换（当前沿用原型的「当前年份」范围）。
-3. 应用图标/启动图、release 签名、iOS 真机回归。
+> 当前仓库里的 release 构建配置仍使用 Flutter 默认的 debug 签名，适合本地安装和测试。如果要持续分发 APK，请先配置自己的 release keystore，并把 keystore / `key.properties` 排除在版本库之外。
+
+## 测试
+
+```bash
+flutter analyze
+flutter test
+```
+
+当前覆盖 29 个测试，包含金额聚合、单账本口径、备份导入/导出、旧格式兼容、数据迁移、图表工具提示、备注聚焦保存、清理数据二次确认与倒计时等。
+
+## 数据与隐私
+
+- 记录保存在 Hive 的 `records` / `meta` Box，路径位于应用文档目录下的 `mint_ledger/`
+- 金额以整数「分」存储，避免浮点误差
+- 日期使用本地 ISO-8601 字符串，日历日不随时区偏移
+- JSON 备份由用户主动选择本地目录；导入时不会联网
+- 清理数据会删除全部记录，但不会删除已经导出的备份文件
+- 卸载应用会删除本机数据；需要保留时请先导出备份
+
+备份 JSON 包含全部记录和导出时间。旧版本保存的纯记录数组、旧的旅行 Demo 记录也做了兼容/过滤处理。
+
+## 已知限制
+
+- 统计目前只覆盖当前年份
+- 预算固定为 ¥5,000，暂不支持编辑
+- 暂无交易详情、编辑、删除
+- 发布 APK 前需要配置正式 release 签名
+
+## Roadmap
+
+- [ ] 交易详情 / 编辑 / 删除
+- [ ] 统计跨年浏览
+- [ ] 预算编辑
+- [ ] release 签名与 GitHub Release
+- [ ] iOS 真机回归
+
+## 反馈
+
+有 bug 或建议可以提 [Issue](../../issues)。这个项目是个人本地记账工具，不提供金融服务、投资建议或云同步。
+
+## License
+
+暂未指定开源许可证；代码、文案和图标版权归作者所有。如需复用或转载，请先联系作者。
