@@ -4,6 +4,12 @@
 
 ![首页](docs/screenshots/home.png)
 
+## 下载
+
+Android APK：[Releases](../../releases/latest)。
+
+安装时需要允许浏览器或文件管理器「安装未知应用」。这是 GitHub 侧载，不经过应用商店。
+
 ## 功能
 
 - **首页**：本月支出 / 收入 / 结余、环比、按日交易列表
@@ -39,7 +45,7 @@ flutter build apk --release
 
 APK 输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
-> 正式分发 APK 前，请在 Android 工程中配置自己的 release keystore。
+> 仓库不包含签名密钥；本地没有 `android/key.properties` 时会回退到 debug 签名。正式发布包请配置自己的 release keystore。
 
 ## 数据与隐私
 
@@ -52,6 +58,7 @@ APK 输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
 - Flutter 3.47 / Dart 3.13
 - Android / iOS / Web
+- Android APK v1.1.0
 - 29 个测试通过，`flutter analyze` 无问题
 
 ## License
