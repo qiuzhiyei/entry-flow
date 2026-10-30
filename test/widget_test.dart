@@ -351,21 +351,26 @@ void main() {
 
     FilledButton finalButton() {
       return tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, '请等待 3 秒'),
+        find.widgetWithText(FilledButton, '确认清理'),
       );
     }
 
     expect(finalButton().onPressed, isNull);
+    expect(find.text('请等待 3 秒'), findsOneWidget);
+
+    final cancelCenter = tester.getCenter(find.text('取消'));
+    final confirmCenter = tester.getCenter(find.text('确认清理'));
+    expect((cancelCenter.dx + confirmCenter.dx) / 2, closeTo(195, 12));
+
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('请等待 2 秒'), findsOneWidget);
+    expect(finalButton().onPressed, isNull);
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('请等待 1 秒'), findsOneWidget);
+    expect(finalButton().onPressed, isNull);
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('确认清理'), findsOneWidget);
-    final ready = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '确认清理'),
-    );
-    expect(ready.onPressed, isNotNull);
+    expect(find.text('现在可以确认清理'), findsOneWidget);
+    expect(finalButton().onPressed, isNotNull);
 
     await tester.tap(find.text('确认清理'));
     await tester.pump();
