@@ -170,7 +170,12 @@ class _DataBackupSheet extends StatelessWidget {
       if (file == null) return;
 
       final bytes = await file.readAsBytes();
-      final source = utf8.decode(bytes);
+      String source;
+      try {
+        source = utf8.decode(bytes);
+      } on FormatException {
+        throw const FormatException('备份文件格式不正确');
+      }
       final preview = provider.parseBackup(source);
       if (preview.records.isEmpty) {
         if (context.mounted) showAppToast('备份中没有可导入的记录');

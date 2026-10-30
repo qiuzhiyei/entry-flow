@@ -122,7 +122,9 @@ abstract final class SeedData {
     records.addAll(_buildHistoricalRecords(now));
     records.addAll(_buildTravelRecords(now));
 
-    await box.addAll(records);
+    await box.putAll(<String, Record>{
+      for (final record in records) record.id: record,
+    });
     await metaBox.put(_seededKey, true);
     await metaBox.put(_versionKey, _version);
   }
@@ -142,12 +144,16 @@ abstract final class SeedData {
     );
     if (hasDemoRecords) {
       final now = DateTime.now();
-      final existingIds = box.keys.cast<String>().toSet();
+      final existingIds = box.values.map((record) => record.id).toSet();
       final additions = <Record>[
         ..._buildHistoricalRecords(now),
         ..._buildTravelRecords(now),
       ].where((record) => !existingIds.contains(record.id)).toList();
-      if (additions.isNotEmpty) await box.addAll(additions);
+      if (additions.isNotEmpty) {
+        await box.putAll(<String, Record>{
+          for (final record in additions) record.id: record,
+        });
+      }
     }
 
     await metaBox.put(_versionKey, _version);
@@ -176,7 +182,7 @@ abstract final class SeedData {
       );
       records.add(
         Record(
-          id: 'demo-history-${now.microsecondsSinceEpoch.toRadixString(36)}-${index++}',
+          id: 'demo-history-${index++}',
           amountCents: (amount * 100).round(),
           type: type == 'income' ? RecordType.income : RecordType.expense,
           categoryId: categoryId,
@@ -277,7 +283,7 @@ abstract final class SeedData {
             (i * 7) % 60,
           );
           return Record(
-            id: 'demo-travel-${now.microsecondsSinceEpoch.toRadixString(36)}-$i',
+            id: 'demo-travel-$i',
             amountCents: (48 + ((i * 73) % 520)) * 100,
             type: RecordType.expense,
             categoryId: categories[i % categories.length],

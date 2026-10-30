@@ -48,6 +48,40 @@ void main() {
     expect(records, isEmpty);
   });
 
+  test('demo data is stored under the record id', () async {
+    await SeedData.seedIfNeeded(records, meta);
+
+    expect(
+      records.keys.every((key) => key is String && key == records.get(key)?.id),
+      isTrue,
+    );
+  });
+
+  test('upgrading legacy demo data with integer keys does not crash', () async {
+    await records.put(
+      0,
+      Record(
+        id: 'demo-legacy',
+        amountCents: 100,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+      ),
+    );
+    await meta.put('demo_seeded', true);
+    await meta.put('demo_version', 1);
+
+    await SeedData.seedIfNeeded(records, meta);
+
+    expect(meta.get('demo_version'), 2);
+    expect(records.length, greaterThan(1));
+    expect(
+      records.values.where((record) => record.id == 'demo-legacy'),
+      hasLength(1),
+    );
+  });
+
   test('an existing ledger is never polluted with demo data', () async {
     await records.put(
       'manual-1',

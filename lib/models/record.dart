@@ -76,6 +76,11 @@ class Record {
   }
 
   factory Record.fromJson(Map<String, dynamic> json) {
+    final date = _jsonDate(json['date']);
+    if (date == null) {
+      throw const FormatException('记录日期无效');
+    }
+    final createdAt = _jsonDate(json['createdAt']) ?? date;
     return Record(
       id: json['id'] as String,
       amountCents: (json['amountCents'] as num).toInt(),
@@ -84,11 +89,17 @@ class Record {
         orElse: () => RecordType.expense,
       ),
       categoryId: json['categoryId'] as String,
-      date: RecordAdapter._readDate(json['date']),
+      date: date,
       note: (json['note'] as String?) ?? '',
-      createdAt: RecordAdapter._readDate(json['createdAt']),
+      createdAt: createdAt,
       ledgerId: (json['ledgerId'] as String?) ?? 'daily',
     );
+  }
+
+  static DateTime? _jsonDate(dynamic value) {
+    if (value is String) return DateTime.tryParse(value);
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
   }
 
   @override

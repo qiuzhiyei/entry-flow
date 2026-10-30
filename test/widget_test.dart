@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:entry_flow/app.dart';
 import 'package:entry_flow/models/record.dart';
 import 'package:entry_flow/providers/ledger_provider.dart';
+import 'package:entry_flow/screens/stats_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -211,6 +212,92 @@ void main() {
     expect(find.text('完成'), findsOneWidget);
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.focusNode?.hasFocus, isFalse);
+  });
+
+  testWidgets('home shows a flat month-over-month badge', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final now = DateTime.now();
+    final previous = DateTime(now.year, now.month - 1, 15);
+    await tester.runAsync(() async {
+      await provider.addRecord(
+        amountCents: 1000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: previous,
+      );
+      await provider.addRecord(
+        amountCents: 1000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: now,
+      );
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('与上月持平'), findsOneWidget);
+  });
+
+  testWidgets('year stats averages only months with expenses', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final year = DateTime.now().year;
+    await tester.runAsync(() async {
+      await provider.addRecord(
+        amountCents: 100000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime(year, 1, 10),
+      );
+      await provider.addRecord(
+        amountCents: 500000,
+        type: RecordType.income,
+        categoryId: 'salary',
+        date: DateTime(year, 2, 10),
+      );
+      await provider.addRecord(
+        amountCents: 300000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime(year, 3, 10),
+      );
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('按年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('月均支出'), findsOneWidget);
+    expect(find.text('¥2,000'), findsOneWidget);
   });
 }
 

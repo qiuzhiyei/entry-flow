@@ -145,9 +145,23 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
   @override
   void didUpdateWidget(covariant MonthlyBarChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_selected != null && _selected! >= widget.data.length) {
+    if (!_sameData(oldWidget.data, widget.data)) {
+      _selected = null;
+    } else if (_selected != null && _selected! >= widget.data.length) {
       _selected = null;
     }
+  }
+
+  bool _sameData(List<MonthlyTotal> a, List<MonthlyTotal> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].month != b[i].month ||
+          a[i].expenseCents != b[i].expenseCents ||
+          a[i].incomeCents != b[i].incomeCents) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @override

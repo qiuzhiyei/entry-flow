@@ -144,10 +144,10 @@ class _StatsScreenState extends State<StatsScreen> {
 
   _YearStats? _yearStats(List<MonthlyTotal> series) {
     final active = series
-        .where((item) => item.expenseCents > 0 || item.incomeCents > 0)
+        .where((item) => item.expenseCents > 0)
         .toList(growable: false);
     if (active.isEmpty) return null;
-    final total = series.fold<int>(0, (sum, item) => sum + item.expenseCents);
+    final total = active.fold<int>(0, (sum, item) => sum + item.expenseCents);
     var peak = active.first;
     for (final item in active) {
       if (item.expenseCents > peak.expenseCents) peak = item;

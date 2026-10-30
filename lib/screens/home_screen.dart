@@ -188,12 +188,20 @@ class _DeltaBadge extends StatelessWidget {
     IconData? icon;
 
     if (hasPrevious) {
-      final percent = (expense - previousExpense).abs() / previousExpense * 100;
-      final decreased = expense <= previousExpense;
-      label = '较上月${decreased ? '减少' : '增加'} ${percent.toStringAsFixed(1)}%';
-      icon = decreased
-          ? Icons.arrow_downward_rounded
-          : Icons.arrow_upward_rounded;
+      final delta = expense - previousExpense;
+      if (delta == 0) {
+        label = '与上月持平';
+        icon = Icons.remove_rounded;
+      } else {
+        final percent = delta.abs() / previousExpense * 100;
+        final decreased = delta < 0;
+        label =
+            '较上月${decreased ? '减少' : '增加'} '
+            '${percent.toStringAsFixed(1)}%';
+        icon = decreased
+            ? Icons.arrow_downward_rounded
+            : Icons.arrow_upward_rounded;
+      }
     }
 
     return Container(

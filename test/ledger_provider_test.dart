@@ -161,6 +161,54 @@ void main() {
     expect(restored.selectedLedger.id, 'travel');
   });
 
+  test('merge import updates a legacy integer-keyed record in place', () async {
+    final legacy = Record(
+      id: 'legacy-1',
+      amountCents: 1000,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+      createdAt: DateTime.now(),
+    );
+    await box.put(7, legacy);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final json = jsonEncode(<Map<String, dynamic>>[
+      legacy.copyWith(amountCents: 2000).toJson(),
+    ]);
+    final summary = await provider.importBackup(json, replace: false);
+
+    expect(summary.imported, 1);
+    expect(box.length, 1);
+    expect(provider.allRecords.single.amountCents, 2000);
+  });
+
+  test(
+    'deleteRecord removes a legacy integer-keyed record by its id',
+    () async {
+      await box.put(
+        3,
+        Record(
+          id: 'legacy-delete',
+          amountCents: 100,
+          type: RecordType.expense,
+          categoryId: 'food',
+          date: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+      final provider = LedgerProvider(box, meta);
+      addTearDown(provider.dispose);
+
+      await provider.deleteRecord('legacy-delete');
+
+      expect(box, isEmpty);
+      expect(provider.allRecords, isEmpty);
+    },
+  );
+
   test('backup timestamp and snapshot persist in the meta box', () async {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
@@ -250,6 +298,30 @@ void main() {
 
     expect(summary.imported, 1);
     expect(provider.records.single.categoryId, 'study');
+  });
+
+  test('records with invalid dates are skipped on import', () async {
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    final invalid = Record(
+      id: 'bad-date',
+      amountCents: 100,
+      type: RecordType.expense,
+      categoryId: 'food',
+      date: DateTime.now(),
+      createdAt: DateTime.now(),
+    ).toJson();
+    invalid['date'] = 'not-a-date';
+    final json = jsonEncode(<Map<String, dynamic>>[invalid]);
+
+    final preview = provider.parseBackup(json);
+    expect(preview.records, isEmpty);
+    expect(preview.skipped, 1);
+    await expectLater(
+      provider.importBackup(json, replace: true),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test('invalid backup files are rejected', () async {

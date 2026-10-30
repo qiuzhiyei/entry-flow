@@ -359,10 +359,24 @@ class LedgerProvider extends ChangeNotifier {
     }
 
     if (replace) await _box.clear();
+
     final byId = <String, Record>{
       for (final record in preview.records) record.id: record,
     };
-    await _box.putAll(byId);
+    final existingKeys = <String, dynamic>{};
+    if (!replace) {
+      for (final key in _box.keys) {
+        final existing = _box.get(key);
+        if (existing != null) existingKeys[existing.id] = key;
+      }
+    }
+
+    final targets = <dynamic, Record>{};
+    for (final record in byId.values) {
+      targets[replace ? record.id : (existingKeys[record.id] ?? record.id)] =
+          record;
+    }
+    await _box.putAll(targets);
 
     if (replace) {
       final ledgerId = preview.ledgerId;
@@ -413,7 +427,18 @@ class LedgerProvider extends ChangeNotifier {
   }
 
   Future<void> deleteRecord(String id) async {
-    await _box.delete(id);
+    dynamic targetKey;
+    if (_box.containsKey(id) && _box.get(id)?.id == id) {
+      targetKey = id;
+    } else {
+      for (final key in _box.keys) {
+        if (_box.get(key)?.id == id) {
+          targetKey = key;
+          break;
+        }
+      }
+    }
+    if (targetKey != null) await _box.delete(targetKey);
     _reload();
   }
 

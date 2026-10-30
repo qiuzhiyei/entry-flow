@@ -511,6 +511,10 @@ class _LedgerSheet extends StatelessWidget {
           count: _countFor(ledger),
           selected: provider.selectedLedger.id == ledger.id,
           onTap: () async {
+            if (provider.selectedLedger.id == ledger.id) {
+              Navigator.of(context).pop();
+              return;
+            }
             await provider.selectLedger(ledger.id);
             if (!context.mounted) return;
             Navigator.of(context).pop();
