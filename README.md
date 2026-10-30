@@ -42,6 +42,12 @@
 
 数据备份弹层：[查看截图](docs/screenshots/backup-sheet.png)。
 
+## 应用图标
+
+![应用图标](assets/icon/app_icon_rounded_1024.png)
+
+深薄荷渐变底、白色账本、深绿书签和暖金硬币，小尺寸仍保留「账本 + 金币」的识别度。源图在 `assets/icon/`，生成脚本是 `tool/generate_app_icon.py`；已同步生成 Android 自适应图标、iOS AppIcon、Web 图标和 Windows ICO。
+
 ## 目录
 
 ```text
