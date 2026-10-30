@@ -269,13 +269,6 @@ class LedgerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get hasLocalBackup => _metaBox.get(_backupDataKey) is String;
-
-  String? get localBackupJson {
-    final value = _metaBox.get(_backupDataKey);
-    return value is String ? value : null;
-  }
-
   String get backupFileName {
     final now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -409,14 +402,6 @@ class LedgerProvider extends ChangeNotifier {
       skipped: preview.skipped,
       replaced: replace,
     );
-  }
-
-  Future<ImportSummary> restoreLocalBackup() async {
-    final json = localBackupJson;
-    if (json == null) {
-      throw const FormatException('还没有本机备份');
-    }
-    return importBackup(json, replace: true);
   }
 
   @override

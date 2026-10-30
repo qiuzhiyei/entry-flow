@@ -108,9 +108,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('数据备份与恢复'), findsOneWidget);
-    expect(find.text('导出备份文件'), findsOneWidget);
-    expect(find.text('从文件导入'), findsOneWidget);
-    expect(find.text('恢复本机备份'), findsOneWidget);
+    expect(find.text('导出备份'), findsOneWidget);
+    expect(find.text('导入备份'), findsOneWidget);
   });
 }
