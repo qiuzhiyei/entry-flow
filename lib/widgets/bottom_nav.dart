@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Bottom navigation matching the prototype: three destinations plus the
-/// central "记一笔" action.
+/// Bottom navigation with four equal destinations. The "记一笔" destination
+/// opens the record screen but deliberately uses the same icon slot and label
+/// baseline as the other tabs, so the row stays visually uniform.
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
     super.key,
@@ -48,7 +49,15 @@ class AppBottomNav extends StatelessWidget {
                   onTap: () => onSelect(1),
                 ),
               ),
-              Expanded(child: _AddDestination(onTap: onAdd)),
+              Expanded(
+                child: _NavDestination(
+                  icon: Icons.add_rounded,
+                  selectedIcon: Icons.add_rounded,
+                  label: '记一笔',
+                  selected: false,
+                  onTap: onAdd,
+                ),
+              ),
               Expanded(
                 child: _NavDestination(
                   icon: Icons.person_outline_rounded,
@@ -108,58 +117,6 @@ class _NavDestination extends StatelessWidget {
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   child: Text(label),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddDestination extends StatelessWidget {
-  const _AddDestination({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.chip),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 1, bottom: 3),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppColors.mintSoft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    size: 22,
-                    color: AppColors.mintInk,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  '记一笔',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    height: 1.1,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.ink3,
-                  ),
                 ),
               ],
             ),
