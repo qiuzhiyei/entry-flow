@@ -6,6 +6,7 @@ import '../models/ledger.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/clear_data_flow.dart';
 import '../widgets/data_backup_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -79,6 +80,14 @@ class ProfileScreen extends StatelessWidget {
                     title: '关于记账本',
                     subtitle: '丘知叶 开发 · 本地运行 v1.0',
                     onTap: () => showAppToast('记账本 v1.0 · 开发者 丘知叶'),
+                  ),
+                  const _RowDivider(),
+                  _SettingRow(
+                    icon: Icons.delete_outline_rounded,
+                    title: '清理数据',
+                    subtitle: '清空全部账目，需两次确认',
+                    danger: true,
+                    onTap: () => showClearDataFlow(context),
                   ),
                 ],
               ),
@@ -349,9 +358,10 @@ class _RowDivider extends StatelessWidget {
 }
 
 class _RowIcon extends StatelessWidget {
-  const _RowIcon(this.icon);
+  const _RowIcon(this.icon, {this.danger = false});
 
   final IconData icon;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
@@ -359,10 +369,14 @@ class _RowIcon extends StatelessWidget {
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: AppColors.mintTint,
+        color: danger ? const Color(0xFFFBEAE8) : AppColors.mintTint,
         borderRadius: BorderRadius.circular(11),
       ),
-      child: Icon(icon, size: 18, color: AppColors.mintInk),
+      child: Icon(
+        icon,
+        size: 18,
+        color: danger ? AppColors.danger : AppColors.mintInk,
+      ),
     );
   }
 }
@@ -431,12 +445,14 @@ class _SettingRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.danger = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
@@ -446,7 +462,7 @@ class _SettingRow extends StatelessWidget {
         height: 68,
         child: Row(
           children: <Widget>[
-            _RowIcon(icon),
+            _RowIcon(icon, danger: danger),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -455,11 +471,11 @@ class _SettingRow extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       height: 1.3,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.ink,
+                      color: danger ? AppColors.danger : AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -473,10 +489,12 @@ class _SettingRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
-              color: AppColors.chevron,
+              color: danger
+                  ? AppColors.danger.withValues(alpha: 0.55)
+                  : AppColors.chevron,
             ),
           ],
         ),

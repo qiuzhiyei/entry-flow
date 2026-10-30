@@ -299,6 +299,81 @@ void main() {
     expect(find.text('月均支出'), findsOneWidget);
     expect(find.text('¥2,000'), findsOneWidget);
   });
+
+  testWidgets('clear data needs two confirmations and a 3 second wait', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.runAsync(() async {
+      await box.put(
+        'clear-record',
+        Record(
+          id: 'clear-record',
+          amountCents: 100,
+          type: RecordType.expense,
+          categoryId: 'food',
+          date: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+    });
+
+    final provider = _RecordingLedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('我的').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.ensureVisible(find.text('清理数据'));
+    await tester.tap(find.text('清理数据'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('清理全部数据？'), findsOneWidget);
+
+    await tester.tap(find.text('继续'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('再次确认'), findsOneWidget);
+
+    FilledButton finalButton() {
+      return tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '请等待 3 秒'),
+      );
+    }
+
+    expect(finalButton().onPressed, isNull);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('请等待 2 秒'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('请等待 1 秒'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('确认清理'), findsOneWidget);
+    final ready = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '确认清理'),
+    );
+    expect(ready.onPressed, isNotNull);
+
+    await tester.tap(find.text('确认清理'));
+    await tester.pump();
+    expect(provider.cleared, isTrue);
+    expect(find.text('已清理全部账目'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+  });
 }
 
 class _RecordingLedgerProvider extends LedgerProvider {
@@ -306,6 +381,12 @@ class _RecordingLedgerProvider extends LedgerProvider {
 
   int? savedAmountCents;
   String? savedNote;
+  bool cleared = false;
+
+  @override
+  Future<void> clearAll() async {
+    cleared = true;
+  }
 
   @override
   Future<void> addRecord({
