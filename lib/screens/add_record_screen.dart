@@ -18,12 +18,12 @@ class AddRecordScreen extends StatefulWidget {
 class _AddRecordScreenState extends State<AddRecordScreen> {
   final TextEditingController _noteController = TextEditingController();
   final FocusNode _noteFocus = FocusNode();
+  final ValueNotifier<String> _raw = ValueNotifier<String>('0');
+  final ValueNotifier<String?> _error = ValueNotifier<String?>(null);
 
   RecordType _type = RecordType.expense;
   String _categoryId = 'food';
-  String _raw = '0';
   DateTime _date = Dates.dayOnly(DateTime.now());
-  String? _error;
   bool _saving = false;
 
   @override
@@ -38,6 +38,8 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       ..removeListener(_handleNoteFocusChanged)
       ..dispose();
     _noteController.dispose();
+    _raw.dispose();
+    _error.dispose();
     super.dispose();
   }
 
@@ -46,7 +48,7 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
   }
 
   int get _amountCents {
-    final parts = _raw.split('.');
+    final parts = _raw.value.split('.');
     final whole = int.tryParse(parts[0]) ?? 0;
     if (parts.length == 1) return whole * 100;
     final fraction = parts[1].padRight(2, '0').substring(0, 2);
@@ -54,57 +56,53 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
   }
 
   void _appendKey(String key) {
-    setState(() {
-      _error = null;
-      if (key == '.') {
-        if (!_raw.contains('.')) _raw = '$_raw.';
-        return;
-      }
-      if (_raw == '0') {
-        _raw = key;
-        return;
-      }
-      final parts = _raw.split('.');
-      if (parts.length > 1 && parts[1].length >= 2) return;
-      if (parts.length == 1 && parts[0].length >= 7) return;
-      _raw = '$_raw$key';
-    });
+    _error.value = null;
+    final current = _raw.value;
+    if (key == '.') {
+      if (!current.contains('.')) _raw.value = '$current.';
+      return;
+    }
+    if (current == '0') {
+      _raw.value = key;
+      return;
+    }
+    final parts = current.split('.');
+    if (parts.length > 1 && parts[1].length >= 2) return;
+    if (parts.length == 1 && parts[0].length >= 7) return;
+    _raw.value = '$current$key';
   }
 
   void _backspace() {
-    setState(() {
-      _error = null;
-      if (_raw.length <= 1) {
-        _raw = '0';
-      } else {
-        _raw = _raw.substring(0, _raw.length - 1);
-        if (_raw.isEmpty || _raw == '-') _raw = '0';
-      }
-    });
+    _error.value = null;
+    final current = _raw.value;
+    if (current.length <= 1) {
+      _raw.value = '0';
+    } else {
+      final next = current.substring(0, current.length - 1);
+      _raw.value = next.isEmpty || next == '-' ? '0' : next;
+    }
   }
 
   void _clear() {
-    setState(() {
-      _raw = '0';
-      _error = null;
-    });
+    _raw.value = '0';
+    _error.value = null;
   }
 
   void _selectType(RecordType type) {
     if (_type == type) return;
     FocusScope.of(context).unfocus();
+    _error.value = null;
     setState(() {
       _type = type;
       _categoryId = LedgerCategories.forType(type).first.id;
-      _error = null;
     });
   }
 
   void _selectCategory(String id) {
     FocusScope.of(context).unfocus();
+    _error.value = null;
     setState(() {
       _categoryId = id;
-      _error = null;
     });
   }
 
@@ -125,17 +123,18 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
   }
 
   Future<void> _save() async {
+    FocusScope.of(context).unfocus();
     if (_saving) return;
     final cents = _amountCents;
     if (cents <= 0) {
-      setState(() => _error = '请输入大于 0 的金额');
+      _error.value = '请输入大于 0 的金额';
       return;
     }
 
     setState(() {
       _saving = true;
-      _error = null;
     });
+    _error.value = null;
 
     final now = DateTime.now();
     final occurredAt = DateTime(
@@ -162,8 +161,8 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = '保存失败，请重试';
       });
+      _error.value = '保存失败，请重试';
     }
   }
 
@@ -180,14 +179,32 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _Header(onBack: () => Navigator.of(context).maybePop()),
+            _Header(
+              onBack: () => Navigator.of(context).maybePop(),
+              onSave: _save,
+              saving: _saving,
+            ),
             _TypeSegment(value: _type, onChanged: _selectType),
-            _AmountDisplay(type: _type, raw: _raw),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
-                child: Text(_error!, style: AppText.error),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: ValueListenableBuilder<String>(
+                valueListenable: _raw,
+                builder: (context, raw, _) {
+                  return _AmountDisplay(type: _type, raw: raw);
+                },
               ),
+            ),
+            ValueListenableBuilder<String?>(
+              valueListenable: _error,
+              builder: (context, error, _) {
+                if (error == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+                  child: Text(error, style: AppText.error),
+                );
+              },
+            ),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -227,9 +244,15 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
+  const _Header({
+    required this.onBack,
+    required this.onSave,
+    required this.saving,
+  });
 
   final VoidCallback onBack;
+  final VoidCallback onSave;
+  final bool saving;
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +288,38 @@ class _Header extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.19,
                 color: AppColors.ink,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: saving ? null : onSave,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.mintInk,
+                  disabledForegroundColor: AppColors.ink3,
+                  minimumSize: const Size(52, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.mint,
+                        ),
+                      )
+                    : const Text(
+                        '保存',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -659,6 +714,9 @@ class _DetailCard extends StatelessWidget {
                     textAlignVertical: TextAlignVertical.center,
                     maxLines: 1,
                     maxLength: 20,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => noteFocus.unfocus(),
+                    onTapOutside: (_) => noteFocus.unfocus(),
                     cursorColor: AppColors.mint,
                     style: const TextStyle(
                       fontSize: 13.5,
