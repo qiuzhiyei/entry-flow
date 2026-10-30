@@ -12,16 +12,23 @@ import '../widgets/data_backup_sheet.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _openLedgerSheet(BuildContext context) async {
+  Future<void> _switchLedger(BuildContext context) async {
     final provider = context.read<LedgerProvider>();
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: false,
-      backgroundColor: Colors.transparent,
-      barrierColor: AppColors.scrim,
-      builder: (sheetContext) => _LedgerSheet(provider: provider),
+    final current = provider.selectedLedger;
+    final next = Ledgers.all.firstWhere(
+      (ledger) => ledger.id != current.id,
+      orElse: () => current,
     );
+    if (next.id == current.id) return;
+
+    try {
+      await provider.selectLedger(next.id);
+      if (!context.mounted) return;
+      showAppToast('已切换到「${next.name}」');
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppToast('账本切换失败，请重试');
+    }
   }
 
   @override
@@ -32,6 +39,10 @@ class ProfileScreen extends StatelessWidget {
     final budget = LedgerProvider.budgetCents;
     final progress = (used / budget).clamp(0.0, 1.0).toDouble();
     final over = used > budget;
+    final otherLedger = Ledgers.all.firstWhere(
+      (item) => item.id != ledger.selectedLedger.id,
+      orElse: () => ledger.selectedLedger,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,15 +64,15 @@ class ProfileScreen extends StatelessWidget {
                 over: over,
                 monthLabel: Dates.monthShort(now),
               ),
-              _SectionHead('账本管理'),
+              _SectionHead('账本'),
               _ListCard(
                 children: <Widget>[
                   _LedgerRow(
                     ledger: ledger.selectedLedger,
-                    subtitle:
-                        '本月 ${ledger.currentMonthCount} 笔 · '
-                        '${Ledgers.all.length} 个账本',
-                    onTap: () => _openLedgerSheet(context),
+                    subtitle: otherLedger.id == ledger.selectedLedger.id
+                        ? '当前账本'
+                        : '点按切换到「${otherLedger.name}」',
+                    onTap: () => _switchLedger(context),
                   ),
                 ],
               ),
@@ -73,13 +84,6 @@ class ProfileScreen extends StatelessWidget {
                     title: '数据备份',
                     subtitle: Dates.backupLabel(ledger.lastBackupAt, now: now),
                     onTap: () => showDataBackupSheet(context),
-                  ),
-                  const _RowDivider(),
-                  _SettingRow(
-                    icon: Icons.info_outline_rounded,
-                    title: '关于记账本',
-                    subtitle: '丘知叶 开发 · 本地运行 v1.0',
-                    onTap: () => showAppToast('记账本 v1.0 · 开发者 丘知叶'),
                   ),
                   const _RowDivider(),
                   _SettingRow(
@@ -428,9 +432,9 @@ class _LedgerRow extends StatelessWidget {
               ),
             ),
             const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: AppColors.chevron,
+              Icons.swap_horiz_rounded,
+              size: 20,
+              color: AppColors.ink3,
             ),
           ],
         ),
@@ -496,176 +500,6 @@ class _SettingRow extends StatelessWidget {
                   ? AppColors.danger.withValues(alpha: 0.55)
                   : AppColors.chevron,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LedgerSheet extends StatelessWidget {
-  const _LedgerSheet({required this.provider});
-
-  final LedgerProvider provider;
-
-  int _countFor(Ledger ledger) {
-    // Matches the prototype: the daily ledger shows this month's count, the
-    // travel ledger shows its total count.
-    return ledger.id == Ledgers.daily.id
-        ? provider.currentMonthCountForLedger(ledger.id)
-        : provider.totalCountForLedger(ledger.id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-    final ledgerRows = <Widget>[];
-    for (var i = 0; i < Ledgers.all.length; i++) {
-      final ledger = Ledgers.all[i];
-      if (i > 0) ledgerRows.add(const _RowDivider());
-      ledgerRows.add(
-        _SheetLedgerRow(
-          ledger: ledger,
-          count: _countFor(ledger),
-          selected: provider.selectedLedger.id == ledger.id,
-          onTap: () async {
-            if (provider.selectedLedger.id == ledger.id) {
-              Navigator.of(context).pop();
-              return;
-            }
-            await provider.selectLedger(ledger.id);
-            if (!context.mounted) return;
-            Navigator.of(context).pop();
-            showAppToast('已切换到「${ledger.name}」');
-          },
-        ),
-      );
-    }
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 10, 20, bottomInset + 14),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0x80091812),
-            offset: Offset(0, -12),
-            blurRadius: 32,
-            spreadRadius: -18,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCE4DF),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const Text(
-            '管理账本',
-            style: TextStyle(
-              fontSize: 16,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.16,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '账本用来区分不同场景的开支',
-            style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
-          ),
-          const SizedBox(height: 12),
-          ...ledgerRows,
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 46,
-            child: Material(
-              color: const Color(0xFFF1F5F1),
-              borderRadius: BorderRadius.circular(14),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(),
-                child: const Center(
-                  child: Text(
-                    '完成',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetLedgerRow extends StatelessWidget {
-  const _SheetLedgerRow({
-    required this.ledger,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Ledger ledger;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 52,
-        child: Row(
-          children: <Widget>[
-            const _RowIcon(Icons.menu_book_outlined),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    ledger.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.3,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$count 笔记录',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              const Icon(Icons.check_rounded, size: 20, color: AppColors.mint),
           ],
         ),
       ),

@@ -374,6 +374,42 @@ void main() {
 
     await tester.pump(const Duration(seconds: 3));
   });
+
+  testWidgets('ledger row switches directly without a management sheet', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = _RecordingLedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('我的').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('日常账本'), findsOneWidget);
+    expect(find.text('管理账本'), findsNothing);
+    await tester.tap(find.text('日常账本'));
+    await tester.pump();
+
+    expect(provider.selectedTo, 'travel');
+    expect(find.text('管理账本'), findsNothing);
+    expect(find.text('已切换到「旅行账本」'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+  });
 }
 
 class _RecordingLedgerProvider extends LedgerProvider {
@@ -381,7 +417,13 @@ class _RecordingLedgerProvider extends LedgerProvider {
 
   int? savedAmountCents;
   String? savedNote;
+  String? selectedTo;
   bool cleared = false;
+
+  @override
+  Future<void> selectLedger(String id) async {
+    selectedTo = id;
+  }
 
   @override
   Future<void> clearAll() async {
