@@ -19,6 +19,7 @@ Android APK：[Releases](../../releases/latest)。
 - **统计**：环形分类图、近 6 个月 / 全年柱状图、按月 / 按年切换
 - **数据备份**：导出 / 导入本地 JSON 文件
 - **单一账本**：所有记录都在日常账本，不需要切换
+- **自定义预算**：点「本月预算」卡片输入金额，保存后持久化
 - **本地数据**：Hive 存储，金额按「分」保存
 - **安全清理**：两次确认 + 最终 3 秒倒计时
 
@@ -62,8 +63,8 @@ APK 输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
 - Flutter 3.47 / Dart 3.13
 - Android / iOS / Web
-- Android APK v1.1.1
-- 28 个测试通过，`flutter analyze` 无问题
+- Android APK v1.1.2
+- 30 个测试通过，`flutter analyze` 无问题
 
 ## License
 

@@ -113,6 +113,46 @@ void main() {
     expect(find.text('导入备份'), findsOneWidget);
   });
 
+  testWidgets('budget can be customized from the profile tab', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = _RecordingLedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('我的').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('/ ¥5,000'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('设置本月预算'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '8000');
+    await tester.pump();
+    await tester.tap(find.text('保存'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(provider.budgetCents, 800000);
+    expect(find.text('/ ¥8,000'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+  });
+
   testWidgets('add screen can save while the note field is focused', (
     tester,
   ) async {
@@ -386,7 +426,17 @@ class _RecordingLedgerProvider extends LedgerProvider {
 
   int? savedAmountCents;
   String? savedNote;
+  int? savedBudgetCents;
   bool cleared = false;
+
+  @override
+  int get budgetCents => savedBudgetCents ?? super.budgetCents;
+
+  @override
+  Future<void> setBudgetCents(int cents) async {
+    savedBudgetCents = cents;
+    notifyListeners();
+  }
 
   @override
   Future<void> clearAll() async {

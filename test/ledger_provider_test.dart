@@ -208,6 +208,32 @@ void main() {
     expect(meta.get('backup_json'), isA<String>());
   });
 
+  test(
+    'budget can be customized and persists after clearing records',
+    () async {
+      final provider = LedgerProvider(box, meta);
+      addTearDown(provider.dispose);
+
+      expect(provider.budgetCents, 500000);
+      await provider.setBudgetCents(800000);
+      expect(meta.get('monthly_budget_cents'), 800000);
+
+      await provider.addRecord(
+        amountCents: 100,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime.now(),
+      );
+      await provider.clearAll();
+
+      expect(provider.budgetCents, 800000);
+
+      final restored = LedgerProvider(box, meta);
+      addTearDown(restored.dispose);
+      expect(restored.budgetCents, 800000);
+    },
+  );
+
   test('exported JSON restores records and settings with replace', () async {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
@@ -224,13 +250,16 @@ void main() {
       categoryId: 'transport',
       date: DateTime.now(),
     );
+    await provider.setBudgetCents(800000);
 
     final json = provider.buildBackupJson();
     expect(json, contains('"schemaVersion": 1'));
     expect(json, contains('"selectedLedger": "daily"'));
+    expect(json, contains('"monthlyBudgetCents": 800000'));
 
     await provider.clearAll();
     expect(provider.allRecords, isEmpty);
+    await provider.setBudgetCents(600000);
 
     final summary = await provider.importBackup(json, replace: true);
 
@@ -240,6 +269,7 @@ void main() {
     expect(provider.allRecords, hasLength(2));
     expect(provider.selectedLedger.id, 'daily');
     expect(provider.currentMonthExpenseCents, 3500);
+    expect(provider.budgetCents, 800000);
   });
 
   test('merge import keeps existing records and dedupes by id', () async {

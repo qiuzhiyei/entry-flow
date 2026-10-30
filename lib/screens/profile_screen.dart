@@ -1,21 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../app_keys.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/budget_edit_dialog.dart';
 import '../widgets/clear_data_flow.dart';
 import '../widgets/data_backup_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  Future<void> _editBudget(BuildContext context) async {
+    final provider = context.read<LedgerProvider>();
+    final cents = await showBudgetEditDialog(
+      context,
+      currentCents: provider.budgetCents,
+    );
+    if (cents == null || !context.mounted) return;
+
+    try {
+      await provider.setBudgetCents(cents);
+      if (!context.mounted) return;
+      showAppToast('本月预算已更新');
+    } catch (_) {
+      if (!context.mounted) return;
+      showAppToast('预算保存失败，请重试');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
     final now = DateTime.now();
     final used = ledger.currentMonthExpenseCents;
-    final budget = LedgerProvider.budgetCents;
+    final budget = ledger.budgetCents;
     final progress = (used / budget).clamp(0.0, 1.0).toDouble();
     final over = used > budget;
 
@@ -38,6 +58,7 @@ class ProfileScreen extends StatelessWidget {
                 progress: progress,
                 over: over,
                 monthLabel: Dates.monthShort(now),
+                onTap: () => _editBudget(context),
               ),
               _SectionHead('通用设置'),
               _ListCard(
@@ -170,6 +191,7 @@ class _BudgetCard extends StatelessWidget {
     required this.progress,
     required this.over,
     required this.monthLabel,
+    required this.onTap,
   });
 
   final int usedCents;
@@ -177,90 +199,114 @@ class _BudgetCard extends StatelessWidget {
   final double progress;
   final bool over;
   final String monthLabel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.line2),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
+    return Semantics(
+      button: true,
+      label: '设置本月预算',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(color: AppColors.line2),
+            boxShadow: AppShadows.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const Text(
-                '本月预算',
-                style: TextStyle(
-                  fontSize: 14.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.145,
-                  color: AppColors.ink,
+              Row(
+                children: <Widget>[
+                  const Text(
+                    '本月预算',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.145,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.edit_outlined,
+                    size: 15,
+                    color: AppColors.ink3,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    monthLabel,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.ink3,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: <Widget>[
+                  Text(
+                    Money.formatShortCents(usedCents),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.6,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '/ ${Money.formatShortCents(budgetCents)}',
+                    style: const TextStyle(fontSize: 13, color: AppColors.ink3),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 10,
+                  backgroundColor: AppColors.mintTint,
+                  color: over ? AppColors.danger : AppColors.mint,
                 ),
               ),
-              const Spacer(),
-              Text(
-                monthLabel,
-                style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+              const SizedBox(height: 10),
+              Row(
+                children: <Widget>[
+                  Text(
+                    over
+                        ? '已超支 ${Money.formatShortCents(usedCents - budgetCents)}'
+                        : '已用 ${(progress * 100).round()}%',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.ink3,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    over
+                        ? '预算 ${Money.formatShortCents(budgetCents)}'
+                        : '剩余 ${Money.formatShortCents(budgetCents - usedCents)}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.ink3,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: <Widget>[
-              Text(
-                Money.formatShortCents(usedCents),
-                style: const TextStyle(
-                  fontSize: 24,
-                  height: 1.1,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.6,
-                  color: AppColors.ink,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '/ ${Money.formatShortCents(budgetCents)}',
-                style: const TextStyle(fontSize: 13, color: AppColors.ink3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: AppColors.mintTint,
-              color: over ? AppColors.danger : AppColors.mint,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              Text(
-                over
-                    ? '已超支 ${Money.formatShortCents(usedCents - budgetCents)}'
-                    : '已用 ${(progress * 100).round()}%',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
-              ),
-              const Spacer(),
-              Text(
-                over
-                    ? '预算 ${Money.formatShortCents(budgetCents)}'
-                    : '剩余 ${Money.formatShortCents(budgetCents - usedCents)}',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

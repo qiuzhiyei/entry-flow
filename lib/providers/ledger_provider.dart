@@ -51,11 +51,13 @@ class BackupPreview {
     required this.records,
     required this.skipped,
     this.exportedAt,
+    this.monthlyBudgetCents,
   });
 
   final List<Record> records;
   final int skipped;
   final DateTime? exportedAt;
+  final int? monthlyBudgetCents;
 }
 
 @immutable
@@ -78,13 +80,18 @@ class LedgerProvider extends ChangeNotifier {
     _boxListenable = _box.listenable();
     _boxListenable.addListener(_handleStorageChanged);
     _lastBackupAt = _parseDate(_metaBox.get(_backupAtKey));
+    final storedBudget = _metaBox.get(_budgetKey);
+    if (storedBudget is int && storedBudget > 0) {
+      _budgetCents = storedBudget;
+    }
     _reload();
   }
 
   static const String _backupAtKey = 'last_backup_at';
   static const String _backupDataKey = 'backup_json';
+  static const String _budgetKey = 'monthly_budget_cents';
 
-  static const int budgetCents = 500000;
+  static const int defaultBudgetCents = 500000;
 
   final Box<Record> _box;
   final Box<dynamic> _metaBox;
@@ -93,12 +100,22 @@ class LedgerProvider extends ChangeNotifier {
   List<Record> _records = const <Record>[];
   final Ledger _selectedLedger = Ledgers.daily;
   DateTime? _lastBackupAt;
+  int _budgetCents = defaultBudgetCents;
   bool _disposed = false;
   int _sequence = 0;
 
   Ledger get selectedLedger => _selectedLedger;
 
   DateTime? get lastBackupAt => _lastBackupAt;
+
+  int get budgetCents => _budgetCents;
+
+  Future<void> setBudgetCents(int cents) async {
+    if (cents <= 0 || cents == _budgetCents) return;
+    await _metaBox.put(_budgetKey, cents);
+    _budgetCents = cents;
+    notifyListeners();
+  }
 
   List<Record> get allRecords => List<Record>.unmodifiable(_records);
 
@@ -250,6 +267,7 @@ class LedgerProvider extends ChangeNotifier {
       'schemaVersion': 1,
       'exportedAt': DateTime.now().toIso8601String(),
       'selectedLedger': _selectedLedger.id,
+      'monthlyBudgetCents': _budgetCents,
       'records': _records
           .map((record) => record.toJson())
           .toList(growable: false),
@@ -282,6 +300,7 @@ class LedgerProvider extends ChangeNotifier {
 
     dynamic rawRecords;
     DateTime? exportedAt;
+    int? monthlyBudgetCents;
 
     if (decoded is List) {
       rawRecords = decoded;
@@ -289,6 +308,8 @@ class LedgerProvider extends ChangeNotifier {
       rawRecords = decoded['records'];
       final exported = decoded['exportedAt'];
       if (exported is String) exportedAt = DateTime.tryParse(exported);
+      final budget = decoded['monthlyBudgetCents'];
+      if (budget is int && budget > 0) monthlyBudgetCents = budget;
     } else {
       throw const FormatException('备份文件格式不正确');
     }
@@ -325,6 +346,7 @@ class LedgerProvider extends ChangeNotifier {
       records: byId.values.toList(growable: false),
       skipped: skipped,
       exportedAt: exportedAt,
+      monthlyBudgetCents: monthlyBudgetCents,
     );
   }
 
@@ -356,6 +378,11 @@ class LedgerProvider extends ChangeNotifier {
           record;
     }
     await _box.putAll(targets);
+
+    if (replace && preview.monthlyBudgetCents != null) {
+      _budgetCents = preview.monthlyBudgetCents!;
+      await _metaBox.put(_budgetKey, _budgetCents);
+    }
 
     _reload();
     return ImportSummary(
