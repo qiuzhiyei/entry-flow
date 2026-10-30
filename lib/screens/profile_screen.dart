@@ -23,14 +23,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _toggleReminder(BuildContext context) async {
-    final provider = context.read<LedgerProvider>();
-    final enabled = !provider.reminderEnabled;
-    await provider.setReminderEnabled(enabled);
-    if (!context.mounted) return;
-    showAppToast(enabled ? '已开启每日提醒' : '已关闭每日提醒');
-  }
-
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
@@ -75,11 +67,6 @@ class ProfileScreen extends StatelessWidget {
               _SectionHead('通用设置'),
               _ListCard(
                 children: <Widget>[
-                  _ReminderRow(
-                    enabled: ledger.reminderEnabled,
-                    onTap: () => _toggleReminder(context),
-                  ),
-                  const _RowDivider(),
                   _SettingRow(
                     icon: Icons.file_download_outlined,
                     title: '数据备份',
@@ -433,104 +420,6 @@ class _LedgerRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ReminderRow extends StatelessWidget {
-  const _ReminderRow({required this.enabled, required this.onTap});
-
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      toggled: enabled,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            children: <Widget>[
-              const _RowIcon(Icons.notifications_none_rounded),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text(
-                      '每日记账提醒',
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.3,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      enabled ? '每天 21:00 提醒我记一笔' : '提醒已关闭',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.ink3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _LedgerSwitch(value: enabled),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LedgerSwitch extends StatelessWidget {
-  const _LedgerSwitch({required this.value});
-
-  final bool value;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: AppMotion.ease,
-      width: 46,
-      height: 28,
-      decoration: BoxDecoration(
-        color: value ? AppColors.mint : const Color(0xFFD9E0DB),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Stack(
-        children: <Widget>[
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 180),
-            curve: AppMotion.ease,
-            left: value ? 21 : 3,
-            top: 3,
-            width: 22,
-            height: 22,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x38121A17),
-                    offset: Offset(0, 1),
-                    blurRadius: 3,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

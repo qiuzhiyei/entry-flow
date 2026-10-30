@@ -161,16 +161,13 @@ void main() {
     expect(restored.selectedLedger.id, 'travel');
   });
 
-  test('reminder and backup settings persist in the meta box', () async {
+  test('backup timestamp and snapshot persist in the meta box', () async {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
 
-    await provider.setReminderEnabled(false);
     await provider.backupNow();
 
-    expect(provider.reminderEnabled, isFalse);
     expect(provider.lastBackupAt, isNotNull);
-    expect(meta.get('reminder_enabled'), isFalse);
     expect(meta.get('backup_json'), isA<String>());
   });
 
@@ -191,7 +188,6 @@ void main() {
       categoryId: 'transport',
       date: DateTime.now(),
     );
-    await provider.setReminderEnabled(false);
 
     final json = provider.buildBackupJson();
     expect(json, contains('"schemaVersion": 1'));
@@ -207,7 +203,6 @@ void main() {
     expect(summary.replaced, isTrue);
     expect(provider.allRecords, hasLength(2));
     expect(provider.selectedLedger.id, 'travel');
-    expect(provider.reminderEnabled, isFalse);
     expect(provider.currentMonthExpenseCents, 2500);
   });
 

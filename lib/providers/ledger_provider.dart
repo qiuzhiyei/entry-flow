@@ -52,14 +52,12 @@ class BackupPreview {
     required this.skipped,
     this.exportedAt,
     this.ledgerId,
-    this.reminderEnabled,
   });
 
   final List<Record> records;
   final int skipped;
   final DateTime? exportedAt;
   final String? ledgerId;
-  final bool? reminderEnabled;
 
   int get dailyCount =>
       records.where((record) => record.ledgerId == Ledgers.daily.id).length;
@@ -88,13 +86,11 @@ class LedgerProvider extends ChangeNotifier {
     _boxListenable = _box.listenable();
     _boxListenable.addListener(_handleStorageChanged);
     _selectedLedger = Ledgers.byId(_metaBox.get(_selectedLedgerKey) as String?);
-    _reminderEnabled = _metaBox.get(_reminderKey) as bool? ?? true;
     _lastBackupAt = _parseDate(_metaBox.get(_backupAtKey));
     _reload();
   }
 
   static const String _selectedLedgerKey = 'selected_ledger';
-  static const String _reminderKey = 'reminder_enabled';
   static const String _backupAtKey = 'last_backup_at';
   static const String _backupDataKey = 'backup_json';
 
@@ -106,14 +102,11 @@ class LedgerProvider extends ChangeNotifier {
 
   List<Record> _records = const <Record>[];
   Ledger _selectedLedger = Ledgers.daily;
-  bool _reminderEnabled = true;
   DateTime? _lastBackupAt;
   bool _disposed = false;
   int _sequence = 0;
 
   Ledger get selectedLedger => _selectedLedger;
-
-  bool get reminderEnabled => _reminderEnabled;
 
   DateTime? get lastBackupAt => _lastBackupAt;
 
@@ -262,13 +255,6 @@ class LedgerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setReminderEnabled(bool enabled) async {
-    if (_reminderEnabled == enabled) return;
-    _reminderEnabled = enabled;
-    await _metaBox.put(_reminderKey, enabled);
-    notifyListeners();
-  }
-
   String get backupFileName {
     final now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -282,7 +268,6 @@ class LedgerProvider extends ChangeNotifier {
       'schemaVersion': 1,
       'exportedAt': DateTime.now().toIso8601String(),
       'selectedLedger': _selectedLedger.id,
-      'reminderEnabled': _reminderEnabled,
       'records': _records
           .map((record) => record.toJson())
           .toList(growable: false),
@@ -316,7 +301,6 @@ class LedgerProvider extends ChangeNotifier {
     dynamic rawRecords;
     DateTime? exportedAt;
     String? ledgerId;
-    bool? reminderEnabled;
 
     if (decoded is List) {
       rawRecords = decoded;
@@ -324,8 +308,6 @@ class LedgerProvider extends ChangeNotifier {
       rawRecords = decoded['records'];
       final ledger = decoded['selectedLedger'];
       if (ledger is String) ledgerId = ledger;
-      final reminder = decoded['reminderEnabled'];
-      if (reminder is bool) reminderEnabled = reminder;
       final exported = decoded['exportedAt'];
       if (exported is String) exportedAt = DateTime.tryParse(exported);
     } else {
@@ -364,7 +346,6 @@ class LedgerProvider extends ChangeNotifier {
       skipped: skipped,
       exportedAt: exportedAt,
       ledgerId: ledgerId,
-      reminderEnabled: reminderEnabled,
     );
   }
 
@@ -388,11 +369,6 @@ class LedgerProvider extends ChangeNotifier {
       if (ledgerId != null) {
         _selectedLedger = Ledgers.byId(ledgerId);
         await _metaBox.put(_selectedLedgerKey, _selectedLedger.id);
-      }
-      final reminder = preview.reminderEnabled;
-      if (reminder != null) {
-        _reminderEnabled = reminder;
-        await _metaBox.put(_reminderKey, reminder);
       }
     }
 
