@@ -423,6 +423,64 @@ void main() {
     expect(find.text('去年午饭'), findsOneWidget);
   });
 
+  testWidgets('stats period picker jumps to a month and a year', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+    final now = DateTime.now();
+    final previousYear = now.year - 1;
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('${now.year}年${now.month}月'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('选择月份'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('上一年'));
+    await tester.pump();
+    await tester.tap(find.text('${now.month}月').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('$previousYear年${now.month}月'), findsOneWidget);
+
+    await tester.tap(find.text('今天'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+
+    await tester.tap(find.text('按年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('${now.year}年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('选择年份'), findsOneWidget);
+
+    await tester.tap(find.text('$previousYear'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('$previousYear年'), findsOneWidget);
+
+    await tester.tap(find.text('今天'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('${now.year}年'), findsOneWidget);
+  });
+
   testWidgets('home shows only the latest seven days', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;

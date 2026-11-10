@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../widgets/finance_charts.dart';
 import '../widgets/record_day_section.dart';
+import '../widgets/stats_period_picker.dart';
 
 enum _StatsRange { month, year }
 
@@ -63,6 +64,34 @@ class _StatsScreenState extends State<StatsScreen> {
     setState(() => _year = next);
   }
 
+  Future<void> _pickPeriod() async {
+    if (_range == _StatsRange.year) {
+      final year = await showStatsYearPicker(
+        context,
+        selectedYear: _year,
+        minYear: _minYear,
+        maxYear: _maxYear,
+      );
+      if (year != null && mounted) setState(() => _year = year);
+    } else {
+      final month = await showStatsMonthPicker(
+        context,
+        selected: _month,
+        minYear: _minYear,
+        maxMonth: _maxMonth,
+      );
+      if (month != null && mounted) setState(() => _month = month);
+    }
+  }
+
+  void _goToday() {
+    final now = DateTime.now();
+    setState(() {
+      _month = DateTime(now.year, now.month);
+      _year = now.year;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
@@ -110,6 +139,9 @@ class _StatsScreenState extends State<StatsScreen> {
                       : _month.isBefore(_maxMonth),
                   onPrevious: () => isYear ? _shiftYear(-1) : _shiftMonth(-1),
                   onNext: () => isYear ? _shiftYear(1) : _shiftMonth(1),
+                  isCurrent: isYear ? _year == _maxYear : _month == _maxMonth,
+                  onPick: _pickPeriod,
+                  onToday: _goToday,
                 ),
               ),
               _DonutCard(
@@ -303,6 +335,9 @@ class _MonthSwitch extends StatelessWidget {
     required this.canGoNext,
     required this.onPrevious,
     required this.onNext,
+    required this.isCurrent,
+    required this.onPick,
+    required this.onToday,
   });
 
   final DateTime month;
@@ -312,9 +347,15 @@ class _MonthSwitch extends StatelessWidget {
   final bool canGoNext;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+  final bool isCurrent;
+  final VoidCallback onPick;
+  final VoidCallback onToday;
 
   @override
   Widget build(BuildContext context) {
+    final label = isYear ? '$year年' : Dates.monthLabel(month);
+    final semanticsLabel = isYear ? '选择年份' : '选择月份';
+
     return Container(
       height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
@@ -324,59 +365,77 @@ class _MonthSwitch extends StatelessWidget {
         border: Border.all(color: AppColors.line2),
         boxShadow: AppShadows.card,
       ),
-      child: isYear
-          ? Row(
-              children: <Widget>[
-                _ArrowButton(
-                  icon: Icons.chevron_left_rounded,
-                  onTap: canGoPrevious ? onPrevious : null,
-                  semanticsLabel: '上一年',
-                ),
-                Expanded(
-                  child: Text(
-                    '$year年',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.14,
-                      color: AppColors.ink,
-                    ),
+      child: Row(
+        children: <Widget>[
+          _ArrowButton(
+            icon: Icons.chevron_left_rounded,
+            onTap: canGoPrevious ? onPrevious : null,
+            semanticsLabel: isYear ? '上一年' : '上一个月',
+          ),
+          Expanded(
+            child: Semantics(
+              button: true,
+              label: semanticsLabel,
+              child: InkWell(
+                onTap: onPick,
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  height: 44,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.14,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.expand_more_rounded,
+                        size: 16,
+                        color: AppColors.ink3,
+                      ),
+                    ],
                   ),
                 ),
-                _ArrowButton(
-                  icon: Icons.chevron_right_rounded,
-                  onTap: canGoNext ? onNext : null,
-                  semanticsLabel: '下一年',
-                ),
-              ],
-            )
-          : Row(
-              children: <Widget>[
-                _ArrowButton(
-                  icon: Icons.chevron_left_rounded,
-                  onTap: canGoPrevious ? onPrevious : null,
-                  semanticsLabel: '上一个月',
-                ),
-                Expanded(
-                  child: Text(
-                    Dates.monthLabel(month),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.14,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-                _ArrowButton(
-                  icon: Icons.chevron_right_rounded,
-                  onTap: canGoNext ? onNext : null,
-                  semanticsLabel: '下一个月',
-                ),
-              ],
+              ),
             ),
+          ),
+          _ArrowButton(
+            icon: Icons.chevron_right_rounded,
+            onTap: canGoNext ? onNext : null,
+            semanticsLabel: isYear ? '下一年' : '下一个月',
+          ),
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: TextButton(
+              onPressed: isCurrent ? null : onToday,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.mintInk,
+                disabledForegroundColor: AppColors.ink3.withValues(alpha: 0.35),
+                minimumSize: const Size(44, 44),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: const Text('今天'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
