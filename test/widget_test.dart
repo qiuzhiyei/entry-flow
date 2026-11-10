@@ -457,25 +457,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('$previousYear年${now.month}月'), findsOneWidget);
 
-    await tester.tap(find.text('今天'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
-
     await tester.tap(find.text('按年'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('${now.year}年'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('选择年份'), findsOneWidget);
-
-    await tester.tap(find.text('$previousYear'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('$previousYear年'), findsOneWidget);
 
-    await tester.tap(find.text('今天'));
+    await tester.tap(find.text('$previousYear年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('选择年份'), findsOneWidget);
+
+    await tester.tap(find.text('${now.year}'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('${now.year}年'), findsOneWidget);

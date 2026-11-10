@@ -84,14 +84,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
-  void _goToday() {
-    final now = DateTime.now();
-    setState(() {
-      _month = DateTime(now.year, now.month);
-      _year = now.year;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
@@ -139,9 +131,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       : _month.isBefore(_maxMonth),
                   onPrevious: () => isYear ? _shiftYear(-1) : _shiftMonth(-1),
                   onNext: () => isYear ? _shiftYear(1) : _shiftMonth(1),
-                  isCurrent: isYear ? _year == _maxYear : _month == _maxMonth,
                   onPick: _pickPeriod,
-                  onToday: _goToday,
                 ),
               ),
               _DonutCard(
@@ -335,9 +325,7 @@ class _MonthSwitch extends StatelessWidget {
     required this.canGoNext,
     required this.onPrevious,
     required this.onNext,
-    required this.isCurrent,
     required this.onPick,
-    required this.onToday,
   });
 
   final DateTime month;
@@ -347,9 +335,7 @@ class _MonthSwitch extends StatelessWidget {
   final bool canGoNext;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
-  final bool isCurrent;
   final VoidCallback onPick;
-  final VoidCallback onToday;
 
   @override
   Widget build(BuildContext context) {
@@ -414,25 +400,6 @@ class _MonthSwitch extends StatelessWidget {
             icon: Icons.chevron_right_rounded,
             onTap: canGoNext ? onNext : null,
             semanticsLabel: isYear ? '下一年' : '下一个月',
-          ),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: TextButton(
-              onPressed: isCurrent ? null : onToday,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.mintInk,
-                disabledForegroundColor: AppColors.ink3.withValues(alpha: 0.35),
-                minimumSize: const Size(44, 44),
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: const Text('今天'),
-            ),
           ),
         ],
       ),
