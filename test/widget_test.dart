@@ -359,6 +359,7 @@ void main() {
         type: RecordType.expense,
         categoryId: 'food',
         date: DateTime(previousYear, now.month, 10),
+        note: '去年午饭',
       );
       await provider.addRecord(
         amountCents: 5000,
@@ -388,11 +389,80 @@ void main() {
     expect(find.text('$previousYear年'), findsOneWidget);
     expect(find.text('¥1,234.00'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('全年明细'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+    expect(find.text('全年明细'), findsOneWidget);
+    expect(find.text('共 1 笔'), findsOneWidget);
+    expect(find.text('去年午饭'), findsOneWidget);
+
     await tester.tap(find.text('按月'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.scrollUntilVisible(
+      find.text('$previousYear年${now.month}月'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
     expect(find.text('$previousYear年${now.month}月'), findsOneWidget);
     expect(find.text('¥1,234.00'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.text('当月明细'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+    expect(find.text('当月明细'), findsOneWidget);
+    expect(find.text('共 1 笔'), findsOneWidget);
+    expect(find.text('去年午饭'), findsOneWidget);
+  });
+
+  testWidgets('home keeps older transactions below the current month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+    final now = DateTime.now();
+    final previousYear = now.year - 1;
+
+    await tester.runAsync(() async {
+      await provider.addRecord(
+        amountCents: 123400,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime(previousYear, now.month, 10),
+        note: '去年的账',
+      );
+      await provider.addRecord(
+        amountCents: 5000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: now,
+      );
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const LedgerApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('去年的账'), findsOneWidget);
+    expect(find.textContaining('$previousYear年'), findsWidgets);
+    expect(find.text('这个月还没有记录'), findsNothing);
   });
 
   testWidgets('clear data needs two confirmations and a 3 second wait', (

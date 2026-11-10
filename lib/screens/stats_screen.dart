@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/record.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../widgets/finance_charts.dart';
+import '../widgets/record_day_section.dart';
 
 enum _StatsRange { month, year }
 
@@ -135,11 +137,35 @@ class _StatsScreenState extends State<StatsScreen> {
                     : current.incomeCents,
                 currentMonth: current.month,
               ),
+              const SizedBox(height: 18),
+              _DetailHeader(isYear: isYear, count: records.length),
+              if (records.isEmpty)
+                _DetailEmpty(isYear: isYear)
+              else
+                ..._detailSections(records),
             ],
           ),
         ),
       ],
     );
+  }
+
+  List<Widget> _detailSections(List<Record> records) {
+    final grouped = <DateTime, List<Record>>{};
+    for (final record in records) {
+      final day = Dates.dayOnly(record.date);
+      grouped.putIfAbsent(day, () => <Record>[]).add(record);
+    }
+    final days = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    return <Widget>[
+      for (final day in days)
+        RecordDaySection(
+          group: DayGroup(
+            day: day,
+            records: List<Record>.unmodifiable(grouped[day]!),
+          ),
+        ),
+    ];
   }
 
   List<DonutSlice> _buildSlices(List<CategoryTotal> totals) {
@@ -584,6 +610,47 @@ class _YearStat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DetailHeader extends StatelessWidget {
+  const _DetailHeader({required this.isYear, required this.count});
+
+  final bool isYear;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      child: Row(
+        children: <Widget>[
+          Text(isYear ? '全年明细' : '当月明细', style: AppText.sectionTitle),
+          const Spacer(),
+          Text(
+            '共 $count 笔',
+            style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailEmpty extends StatelessWidget {
+  const _DetailEmpty({required this.isYear});
+
+  final bool isYear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Text(
+        isYear ? '这一年还没有明细' : '这个月还没有明细',
+        style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
+      ),
     );
   }
 }

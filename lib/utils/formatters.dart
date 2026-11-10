@@ -71,9 +71,12 @@ abstract final class Dates {
     final today = dayOnly(now ?? DateTime.now());
     final target = dayOnly(day);
     final difference = target.difference(today).inDays;
-    if (difference == 0) return '今天 · ${cnDate(day)}';
-    if (difference == -1) return '昨天 · ${cnDate(day)}';
-    return '${cnDate(day)} · ${weekday(day)}';
+    final dateText = target.year == today.year
+        ? cnDate(day)
+        : '${day.year}年${cnDate(day)}';
+    if (difference == 0) return '今天 · $dateText';
+    if (difference == -1) return '昨天 · $dateText';
+    return '$dateText · ${weekday(day)}';
   }
 
   static String backupLabel(DateTime? lastBackup, {DateTime? now}) {

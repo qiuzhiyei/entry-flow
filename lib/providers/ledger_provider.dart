@@ -151,6 +151,20 @@ class LedgerProvider extends ChangeNotifier {
     ];
   }
 
+  /// Every daily-ledger record grouped by day, newest day first.
+  List<DayGroup> get allDayGroups {
+    final grouped = <DateTime, List<Record>>{};
+    for (final record in records) {
+      final day = Dates.dayOnly(record.date);
+      grouped.putIfAbsent(day, () => <Record>[]).add(record);
+    }
+    final days = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    return <DayGroup>[
+      for (final day in days)
+        DayGroup(day: day, records: List<Record>.unmodifiable(grouped[day]!)),
+    ];
+  }
+
   List<CategoryTotal> get currentMonthExpenseByCategory {
     return expenseCategoryTotalsFor(currentMonthRecords);
   }
