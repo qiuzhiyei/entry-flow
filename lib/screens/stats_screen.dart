@@ -29,14 +29,23 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   DateTime get _now => DateTime.now();
-  DateTime get _minMonth => DateTime(_now.year, 1);
+  DateTime get _minMonth => DateTime(2000, 1);
   DateTime get _maxMonth => DateTime(_now.year, _now.month);
+  int get _minYear => _minMonth.year;
+  int get _maxYear => _now.year;
 
   void _setRange(_StatsRange range) {
     if (_range == range) return;
     setState(() {
       _range = range;
-      if (range == _StatsRange.year) _year = _now.year;
+      if (range == _StatsRange.year) {
+        _year = _month.year;
+      } else {
+        final candidate = DateTime(_year, _month.month);
+        _month = candidate.isAfter(_maxMonth)
+            ? _maxMonth
+            : (candidate.isBefore(_minMonth) ? _minMonth : candidate);
+      }
     });
   }
 
@@ -44,6 +53,12 @@ class _StatsScreenState extends State<StatsScreen> {
     final next = DateTime(_month.year, _month.month + delta);
     if (next.isBefore(_minMonth) || next.isAfter(_maxMonth)) return;
     setState(() => _month = next);
+  }
+
+  void _shiftYear(int delta) {
+    final next = _year + delta;
+    if (next < _minYear || next > _maxYear) return;
+    setState(() => _year = next);
   }
 
   @override
@@ -86,10 +101,14 @@ class _StatsScreenState extends State<StatsScreen> {
                   month: _month,
                   year: _year,
                   isYear: isYear,
-                  canGoPrevious: _month.isAfter(_minMonth),
-                  canGoNext: _month.isBefore(_maxMonth),
-                  onPrevious: () => _shiftMonth(-1),
-                  onNext: () => _shiftMonth(1),
+                  canGoPrevious: isYear
+                      ? _year > _minYear
+                      : _month.isAfter(_minMonth),
+                  canGoNext: isYear
+                      ? _year < _maxYear
+                      : _month.isBefore(_maxMonth),
+                  onPrevious: () => isYear ? _shiftYear(-1) : _shiftMonth(-1),
+                  onNext: () => isYear ? _shiftYear(1) : _shiftMonth(1),
                 ),
               ),
               _DonutCard(
@@ -271,7 +290,7 @@ class _MonthSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: isYear ? 48 : 54,
+      height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -280,16 +299,31 @@ class _MonthSwitch extends StatelessWidget {
         boxShadow: AppShadows.card,
       ),
       child: isYear
-          ? Center(
-              child: Text(
-                '$year年',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.14,
-                  color: AppColors.ink,
+          ? Row(
+              children: <Widget>[
+                _ArrowButton(
+                  icon: Icons.chevron_left_rounded,
+                  onTap: canGoPrevious ? onPrevious : null,
+                  semanticsLabel: '上一年',
                 ),
-              ),
+                Expanded(
+                  child: Text(
+                    '$year年',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.14,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                _ArrowButton(
+                  icon: Icons.chevron_right_rounded,
+                  onTap: canGoNext ? onNext : null,
+                  semanticsLabel: '下一年',
+                ),
+              ],
             )
           : Row(
               children: <Widget>[

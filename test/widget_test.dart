@@ -340,6 +340,61 @@ void main() {
     expect(find.text('¥2,000'), findsOneWidget);
   });
 
+  testWidgets('stats can navigate to a previous year and month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final provider = LedgerProvider(box, meta);
+    addTearDown(provider.dispose);
+    final now = DateTime.now();
+    final previousYear = now.year - 1;
+
+    await tester.runAsync(() async {
+      await provider.addRecord(
+        amountCents: 123400,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: DateTime(previousYear, now.month, 10),
+      );
+      await provider.addRecord(
+        amountCents: 5000,
+        type: RecordType.expense,
+        categoryId: 'food',
+        date: now,
+      );
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LedgerProvider>.value(
+        value: provider,
+        child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('按年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('${now.year}年'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('上一年'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('$previousYear年'), findsOneWidget);
+    expect(find.text('¥1,234.00'), findsWidgets);
+
+    await tester.tap(find.text('按月'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('$previousYear年${now.month}月'), findsOneWidget);
+    expect(find.text('¥1,234.00'), findsWidgets);
+  });
+
   testWidgets('clear data needs two confirmations and a 3 second wait', (
     tester,
   ) async {
