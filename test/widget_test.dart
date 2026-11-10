@@ -54,8 +54,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('最近交易'), findsOneWidget);
-    expect(find.text('这个月还没有记录'), findsOneWidget);
+    expect(find.text('最近 7 天'), findsOneWidget);
+    expect(find.text('最近 7 天还没有记录'), findsOneWidget);
     expect(find.text('暂无上月数据'), findsOneWidget);
 
     // Hive writes hit the real file system; run them outside the widget
@@ -72,14 +72,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('这个月还没有记录'), findsNothing);
+    expect(find.text('最近 7 天还没有记录'), findsNothing);
     expect(find.text('午饭'), findsOneWidget);
     expect(find.text('−¥12.50'), findsOneWidget);
 
     await tester.runAsync(provider.clearAll);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('这个月还没有记录'), findsOneWidget);
+    expect(find.text('最近 7 天还没有记录'), findsOneWidget);
   });
 
   testWidgets('data backup sheet opens from the profile tab', (tester) async {
@@ -201,7 +201,7 @@ void main() {
     expect(provider.savedAmountCents, 30000);
     expect(provider.savedNote, '午饭');
     expect(find.text('支出'), findsNothing);
-    expect(find.text('最近交易'), findsOneWidget);
+    expect(find.text('最近 7 天'), findsOneWidget);
     expect(find.text('已记录：餐饮 300.00 元'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
 
@@ -377,6 +377,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('近 6 个月收支'), findsNothing);
 
     await tester.tap(find.text('按年'));
     await tester.pump();
@@ -422,9 +423,7 @@ void main() {
     expect(find.text('去年午饭'), findsOneWidget);
   });
 
-  testWidgets('home keeps older transactions below the current month', (
-    tester,
-  ) async {
+  testWidgets('home shows only the latest seven days', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -433,21 +432,21 @@ void main() {
     final provider = LedgerProvider(box, meta);
     addTearDown(provider.dispose);
     final now = DateTime.now();
-    final previousYear = now.year - 1;
 
     await tester.runAsync(() async {
       await provider.addRecord(
         amountCents: 123400,
         type: RecordType.expense,
         categoryId: 'food',
-        date: DateTime(previousYear, now.month, 10),
-        note: '去年的账',
+        date: now.subtract(const Duration(days: 10)),
+        note: '更早的账',
       );
       await provider.addRecord(
         amountCents: 5000,
         type: RecordType.expense,
         categoryId: 'food',
-        date: now,
+        date: now.subtract(const Duration(days: 3)),
+        note: '前几天的账',
       );
     });
 
@@ -460,9 +459,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('去年的账'), findsOneWidget);
-    expect(find.textContaining('$previousYear年'), findsWidgets);
-    expect(find.text('这个月还没有记录'), findsNothing);
+    expect(find.text('前几天的账'), findsOneWidget);
+    expect(find.text('更早的账'), findsNothing);
+    expect(find.text('最近 7 天'), findsOneWidget);
+    expect(find.text('最近 7 天还没有记录'), findsNothing);
   });
 
   testWidgets('clear data needs two confirmations and a 3 second wait', (

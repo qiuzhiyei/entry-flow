@@ -16,7 +16,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ledger = context.watch<LedgerProvider>();
-    final groups = ledger.allDayGroups;
+    final groups = ledger.recentDayGroups;
     final now = DateTime.now();
 
     return Column(
@@ -250,7 +250,7 @@ class _SectionHead extends StatelessWidget {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: <Widget>[
-          const Text('最近交易', style: AppText.sectionTitle),
+          const Text('最近 7 天', style: AppText.sectionTitle),
           const Spacer(),
           Semantics(
             button: true,
@@ -317,7 +317,7 @@ class _HomeEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                '这个月还没有记录',
+                '最近 7 天还没有记录',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.3,

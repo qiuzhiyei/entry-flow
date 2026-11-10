@@ -76,9 +76,8 @@ class _StatsScreenState extends State<StatsScreen> {
       ..sort((a, b) => b.cents.compareTo(a.cents));
     final series = isYear
         ? ledger.monthlyTotals(DateTime(_year, 12, 1), 12)
-        : ledger.monthlyTotals(_month, 6);
+        : const <MonthlyTotal>[];
     final yearStats = isYear ? _yearStats(series) : null;
-    final current = series.last;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,22 +120,23 @@ class _StatsScreenState extends State<StatsScreen> {
                 emptyText: isYear ? '这一年还没有支出记录' : '这个月还没有支出记录',
                 yearStats: yearStats,
               ),
-              const SizedBox(height: 14),
-              _BarCard(
-                title: isYear ? '全年 12 个月收支' : '近 6 个月收支',
-                series: series,
-                isYear: isYear,
-                expenseCents: isYear
-                    ? series.fold<int>(
-                        0,
-                        (sum, item) => sum + item.expenseCents,
-                      )
-                    : current.expenseCents,
-                incomeCents: isYear
-                    ? series.fold<int>(0, (sum, item) => sum + item.incomeCents)
-                    : current.incomeCents,
-                currentMonth: current.month,
-              ),
+              if (isYear) ...<Widget>[
+                const SizedBox(height: 14),
+                _BarCard(
+                  title: '全年 12 个月收支',
+                  series: series,
+                  isYear: true,
+                  expenseCents: series.fold<int>(
+                    0,
+                    (sum, item) => sum + item.expenseCents,
+                  ),
+                  incomeCents: series.fold<int>(
+                    0,
+                    (sum, item) => sum + item.incomeCents,
+                  ),
+                  currentMonth: DateTime(_year, 12, 1),
+                ),
+              ],
               const SizedBox(height: 18),
               _DetailHeader(isYear: isYear, count: records.length),
               if (records.isEmpty)

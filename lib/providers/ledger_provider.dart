@@ -165,6 +165,29 @@ class LedgerProvider extends ChangeNotifier {
     ];
   }
 
+  /// The latest seven calendar days, including today. Older records stay in
+  /// the ledger but are not shown on the Home screen.
+  List<DayGroup> get recentDayGroups {
+    final now = DateTime.now();
+    final start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    final grouped = <DateTime, List<Record>>{};
+    for (final record in records) {
+      if (record.date.isBefore(start) || record.date.isAfter(end)) continue;
+      final day = Dates.dayOnly(record.date);
+      grouped.putIfAbsent(day, () => <Record>[]).add(record);
+    }
+    final days = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    return <DayGroup>[
+      for (final day in days)
+        DayGroup(day: day, records: List<Record>.unmodifiable(grouped[day]!)),
+    ];
+  }
+
   List<CategoryTotal> get currentMonthExpenseByCategory {
     return expenseCategoryTotalsFor(currentMonthRecords);
   }
