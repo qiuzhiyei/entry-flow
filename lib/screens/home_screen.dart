@@ -94,7 +94,10 @@ class _BalanceCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Text('本月支出', style: AppText.balanceLabel),
+              Text(
+                '本月支出',
+                style: AppText.balanceLabel.copyWith(color: AppColors.expense),
+              ),
               const Spacer(),
               _DeltaBadge(
                 expense: expense,
@@ -110,7 +113,7 @@ class _BalanceCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 Money.formatCents(expense),
-                style: AppText.balanceAmount,
+                style: AppText.balanceAmount.copyWith(color: AppColors.expense),
                 maxLines: 1,
               ),
             ),
@@ -124,7 +127,7 @@ class _BalanceCard extends StatelessWidget {
                 child: _BalanceStat(
                   label: '本月收入',
                   value: Money.formatCents(income),
-                  valueColor: AppColors.amberInk,
+                  valueColor: AppColors.income,
                 ),
               ),
               const SizedBox(width: 12),
@@ -132,6 +135,9 @@ class _BalanceCard extends StatelessWidget {
                 child: _BalanceStat(
                   label: '本月结余',
                   value: Money.formatCents(balance),
+                  valueColor: balance < 0
+                      ? AppColors.expense
+                      : (balance > 0 ? AppColors.income : AppColors.balanceInk),
                 ),
               ),
             ],
@@ -185,6 +191,7 @@ class _DeltaBadge extends StatelessWidget {
     final hasPrevious = previousExpense > 0;
     String label = '暂无上月数据';
     IconData? icon;
+    Color color = AppColors.ink3;
 
     if (hasPrevious) {
       final delta = expense - previousExpense;
@@ -194,6 +201,7 @@ class _DeltaBadge extends StatelessWidget {
       } else {
         final percent = delta.abs() / previousExpense * 100;
         final decreased = delta < 0;
+        color = decreased ? AppColors.income : AppColors.expense;
         label =
             '较上月${decreased ? '减少' : '增加'} '
             '${percent.toStringAsFixed(1)}%';
@@ -214,16 +222,16 @@ class _DeltaBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[
-            Icon(icon, size: 14, color: AppColors.mintInk),
+            Icon(icon, size: 14, color: color),
             const SizedBox(width: 3),
           ],
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               height: 1,
               fontWeight: FontWeight.w600,
-              color: AppColors.mintInk,
+              color: color,
             ),
           ),
         ],
@@ -390,8 +398,8 @@ class _RecordRow extends StatelessWidget {
             Money.signedCents(record.amountCents, record.type),
             style: AppText.recordAmount.copyWith(
               color: record.type == RecordType.income
-                  ? AppColors.amberInk
-                  : AppColors.ink,
+                  ? AppColors.income
+                  : AppColors.expense,
             ),
             maxLines: 1,
           ),

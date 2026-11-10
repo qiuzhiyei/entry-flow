@@ -316,7 +316,7 @@ class _BarChartPainter extends CustomPainter {
         _bottom - expenseHeight,
         barWidth,
         expenseHeight,
-        AppColors.mint,
+        AppColors.expense,
       );
       _drawBar(
         canvas,
@@ -324,7 +324,7 @@ class _BarChartPainter extends CustomPainter {
         _bottom - incomeHeight,
         barWidth,
         incomeHeight,
-        AppColors.amber,
+        AppColors.income,
       );
       _paintText(
         canvas,

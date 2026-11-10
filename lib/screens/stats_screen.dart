@@ -618,17 +618,22 @@ class _BarCard extends StatelessWidget {
       color: AppColors.ink,
       fontWeight: FontWeight.w600,
     );
+    final expenseStyle = boldStyle.copyWith(color: AppColors.expense);
+    final incomeStyle = boldStyle.copyWith(color: AppColors.income);
+    final balanceStyle = boldStyle.copyWith(
+      color: balance < 0 ? AppColors.expense : AppColors.income,
+    );
     final summarySpans = <TextSpan>[
       if (isYear)
         const TextSpan(text: '全年支出 ')
       else
         TextSpan(text: '${currentMonth.month}月 支出 '),
-      TextSpan(text: Money.formatCents(expenseCents), style: boldStyle),
+      TextSpan(text: Money.formatCents(expenseCents), style: expenseStyle),
       const TextSpan(text: ' · 收入 '),
-      TextSpan(text: Money.formatCents(incomeCents), style: boldStyle),
+      TextSpan(text: Money.formatCents(incomeCents), style: incomeStyle),
       if (isYear) ...<TextSpan>[
         const TextSpan(text: ' · 结余 '),
-        TextSpan(text: Money.formatCents(balance), style: boldStyle),
+        TextSpan(text: Money.formatCents(balance), style: balanceStyle),
       ],
     ];
 
@@ -657,9 +662,9 @@ class _BarCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const _ChartLegend(color: AppColors.mint, label: '支出'),
+              const _ChartLegend(color: AppColors.expense, label: '支出'),
               const SizedBox(width: 13),
-              const _ChartLegend(color: AppColors.amber, label: '收入'),
+              const _ChartLegend(color: AppColors.income, label: '收入'),
             ],
           ),
           const SizedBox(height: 12),

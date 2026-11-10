@@ -354,8 +354,8 @@ class _TypeSegment extends StatelessWidget {
                 label: type.label,
                 selected: value == type,
                 selectedColor: type == RecordType.income
-                    ? AppColors.amberInk
-                    : AppColors.ink,
+                    ? AppColors.income
+                    : AppColors.expense,
                 onTap: () => onChanged(type),
               ),
             ),
@@ -430,8 +430,8 @@ class _AmountDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncome = type == RecordType.income;
-    final color = isIncome ? AppColors.amberInk : AppColors.ink;
-    final currencyColor = isIncome ? AppColors.amberInk : AppColors.ink3;
+    final color = isIncome ? AppColors.income : AppColors.expense;
+    final currencyColor = isIncome ? AppColors.income : AppColors.expense;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 4),

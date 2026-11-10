@@ -17,6 +17,7 @@ Android APK：[Releases](../../releases/latest)。
 - **首页**：本月支出 / 收入 / 结余、环比、按日交易列表
 - **记一笔**：自定义数字键盘、分类、日期、备注、金额校验
 - **统计**：环形分类图、近 6 个月 / 全年柱状图、按月 / 按年切换，可向前翻到往年
+- **收支颜色**：收入绿、支出红，保留 +/− 符号，分类图标与环形图仍按类别配色
 - **数据备份**：导出 / 导入本地 JSON 文件
 - **单一账本**：所有记录都在日常账本，不需要切换
 - **自定义预算**：点「本月预算」卡片输入金额，保存后持久化
@@ -63,7 +64,7 @@ APK 输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
 - Flutter 3.47 / Dart 3.13
 - Android / iOS / Web
-- Android APK v1.2.0
+- Android APK v1.2.1
 - 31 个测试通过，`flutter analyze` 无问题
 
 ## License

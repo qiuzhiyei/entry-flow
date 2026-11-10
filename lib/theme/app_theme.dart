@@ -20,6 +20,12 @@ abstract final class AppColors {
   static const mintTint = Color(0xFFF1F8F4);
   static const mintBorder = Color(0xFFD2E9DE);
 
+  /// Semantic money colors: green for money in, brick red for money out.
+  static const income = Color(0xFF0C7E60);
+  static const incomeSoft = Color(0xFFE3F2EA);
+  static const expense = Color(0xFFB3372E);
+  static const expenseSoft = Color(0xFFFBEDEA);
+
   static const amber = Color(0xFFD9651C);
   static const amberInk = Color(0xFFA8551A);
   static const amberSoft = Color(0xFFFCEFE2);
